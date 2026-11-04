@@ -3,10 +3,53 @@
  * (player.known) and public piles. A hidden card is valued at the deck's average.
  */
 import { CALL_LIMIT, RANK, hasDrawAbility } from './cards';
-import { abilityCandidates, card, countFaceUp, guardOf } from './game';
-import type { CardId, Command, GameState } from './types';
+import { abilityCandidates, apply, card, countFaceUp, guardOf } from './game';
+import { RuleError, type CardId, type Command, type GameState } from './types';
 
 const UNKNOWN_VALUE = 6.5;
+
+const legal = (s: GameState, me: number, cmd: Command): boolean => {
+  try {
+    apply(s, me, cmd);
+    return true;
+  } catch (e) {
+    if (e instanceof RuleError) return false;
+    throw e;
+  }
+};
+/**
+ * The rival's move, checked against the rules. If its plan breaks a rule in some rare spot,
+ * it falls back to any legal move, so the game never stops on a rival's turn.
+ */
+export function safeBotCommand(s: GameState, me: number, rand: () => number): Command {
+  const planned = botCommand(s, me, rand);
+  if (legal(s, me, planned)) return planned;
+  const own = s.players[me]?.village ?? [];
+  const free = own.filter(id => s.amulet.on !== id);
+  const rivals = s.players.flatMap((p, i) => (i === me ? [] : p.village));
+  const held = s.turn.hand[0];
+  const pending = s.turn.pending;
+  const options = pending === null ? [] : abilityCandidates(s, me, pending);
+  const fallbacks: Command[] = [
+    { type: 'skipAbility' },
+    { type: 'confirm' },
+    { type: 'draw' },
+    ...s.row.map(id => ({ type: 'takeRow', card: id }) as Command),
+    { type: 'takeDiscard' },
+    { type: 'call' },
+    { type: 'placeEnd', side: 'end' },
+    ...(s.turn.placing?.spots ?? []).map(index => ({ type: 'placeSpot', index }) as Command),
+    ...(held === undefined ? [] : [
+      { type: 'burn', card: held, useAbility: false } as Command,
+      ...free.map(id => ({ type: 'exchange', card: held, targets: [id] }) as Command),
+      ...rivals.map(id => ({ type: 'witchGive', target: id }) as Command),
+    ]),
+    ...options.flatMap(id => [{ type: 'target', cards: [id] } as Command, ...free.map(f => ({ type: 'target', cards: [id, f] }) as Command)]),
+  ];
+  const move = fallbacks.find(cmd => legal(s, me, cmd));
+  if (!move) throw new Error('rival has no legal move');
+  return move;
+}
 
 export function botCommand(s: GameState, me: number, rand: () => number): Command {
   const self = s.players[me];
@@ -78,8 +121,11 @@ export function botCommand(s: GameState, me: number, rand: () => number): Comman
       const held = [...hand].sort((a, b) => card(s, a).rank - card(s, b).rank)[0] as CardId;
       const rank = card(s, held).rank;
       const set = bestSet();
-      if (set && open().length > 0) return { type: 'exchange', card: held, targets: set };
       const w = worst();
+      /* a set only pays when its cards are worth clearly more than the one card that replaces them */
+      const setGain = set ? set.reduce((n, id) => n + value(id), 0) - rank : 0;
+      const oneGain = w ? value(w) - rank : 0;
+      if (set && setGain >= 2 && setGain >= oneGain) return { type: 'exchange', card: held, targets: set };
       if (s.turn.source === 'discard' && w) return { type: 'exchange', card: held, targets: [w] };
       if (w && value(w) - rank >= 2) return { type: 'exchange', card: held, targets: [w] };
       const useful = [...hand].sort((a, b) => card(s, b).rank - card(s, a).rank).find(id => hasDrawAbility(card(s, id).rank));

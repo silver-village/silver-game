@@ -658,3 +658,50 @@ describe('random full games', () => {
     }
   });
 });
+
+describe('fixes from the rulebook review', () => {
+  it('a card id never tells its rank', () => {
+    const villagerIds = new Set([1, 2, 3, 4, 5, 6].map(seed => {
+      const s = newGame(['A', 'B'], seed);
+      return Object.values(s.cards).filter(c => c.rank === RANK.villager).map(c => c.id).sort().join();
+    }));
+    expect(villagerIds.size).toBeGreaterThan(1);
+  });
+  it('a call still scores when the deck runs out during the last turns', () => {
+    const s = arrange({ hands: [[1, 2, 0, 3], [7, 9, 8, 6]], top: [5] });
+    s.deck = s.deck.slice(0, 1);
+    s.removed = Object.keys(s.cards).filter(id => !s.deck.includes(id) && !s.discard.includes(id) && !s.players.flatMap(p => p.village).includes(id));
+    const a = run(s, 0, { type: 'call' });
+    const b = run(a, 1, { type: 'draw' });
+    const c = run(b, 1, { type: 'burn', card: b.turn.hand[0] as CardId, useAbility: false }, { type: 'confirm' });
+    expect(c.result).toMatchObject({ caller: 0, callerWon: true, scores: [0, 30] });
+    expect(c.amulet).toMatchObject({ holder: 0, usable: true });
+  });
+  it('a call still scores when two villagers end the round', () => {
+    const s = arrange({ hands: [['0^', 2, 3], [0, 9, 8]], top: [6, 5] });
+    const a = run(s, 0, { type: 'call' });
+    const b = run(a, 1, { type: 'draw' });
+    const c = run(b, 1, { type: 'burn', card: b.turn.hand[0] as CardId, useAbility: true }, { type: 'target', cards: [at(s, 1, 0)] });
+    expect(c.result).toMatchObject({ reason: 'villager', caller: 0, callerWon: true });
+  });
+  it('with the amulet on your last card, the witch, master and robber do nothing', () => {
+    const s = arrange({ hands: [[7], [6, 2]], discard: [3, 9] });
+    s.amulet = { holder: 0, usable: true, on: at(s, 0, 0) };
+    for (const r of [RANK.witch, RANK.master, RANK.robber]) expect(abilityCandidates(s, 0, r)).toEqual([]);
+  });
+  it('the robber still knows the card given away', () => {
+    const s = arrange({ hands: [[7, 8], [6, 2]], top: [12], known: true });
+    const { state, hand } = drawAnd(s);
+    const a = run(state, 0, { type: 'burn', card: hand, useAbility: true }, { type: 'target', cards: [at(s, 1, 0), at(s, 0, 0)] });
+    expect(a.players[0]?.known).toEqual(expect.arrayContaining([at(s, 0, 0), at(s, 1, 0)]));
+  });
+  it('the empath works while an ability waits for its target', () => {
+    const s = arrange({ hands: [['2^', 8, 7], [6, 5]], top: [9] });
+    const { state, hand } = drawAnd(s);
+    const a = run(state, 0, { type: 'burn', card: hand, useAbility: true });
+    expect(a.turn.step).toBe('ability');
+    const b = apply(a, 0, { type: 'empathPeek', card: at(s, 0, 1) });
+    expect(b.state.turn.step).toBe('ability');
+    expect(b.events.some(e => e.type === 'saw' && e.rank === 8)).toBe(true);
+  });
+});

@@ -53,14 +53,13 @@ export function newGame(names: string[], seed: number): GameState {
 }
 
 function deal(s: GameState): void {
+  /* ids are given to ranks at random every round, so an id never tells a hidden card's rank */
+  const ranks = shuffle(s, AMULET_SET.flatMap(def => Array.from({ length: def.count }, () => def.rank)));
   const cards: Record<CardId, Card> = {};
-  let n = 0;
-  for (const def of AMULET_SET) {
-    for (let i = 0; i < def.count; i++) {
-      const id = `c${n++}`;
-      cards[id] = { id, rank: def.rank, faceUp: false, guarding: null };
-    }
-  }
+  ranks.forEach((r, n) => {
+    const id = `c${n}`;
+    cards[id] = { id, rank: r, faceUp: false, guarding: null };
+  });
   s.cards = cards;
   const pool = shuffle(s, Object.keys(cards));
   const sets = Array.from({ length: DEALT_SETS }, () => pool.splice(0, VILLAGE_SIZE));
@@ -165,7 +164,8 @@ function finishRound(s: GameState, reason: 'vote' | 'villager' | 'deck', ev: Gam
   s.phase = 'roundEnd';
   const sums = s.players.map(p => p.village.reduce((n, id) => n + rank(s, id), 0));
   const low = Math.min(...sums);
-  const caller = reason === 'vote' ? s.caller : null;
+  /* a call still counts when the deck or the villagers end the round during the last turns */
+  const caller = s.caller;
   const callerWon = caller !== null && sums[caller] === low;
   const scores = sums.map((n, i) => (i === caller ? (callerWon ? 0 : n + FAILED_CALL_PENALTY) : n));
   scores.forEach((n, i) => {
@@ -281,15 +281,17 @@ export function abilityCandidates(s: GameState, player: number, r: number): Card
   const everyone = s.players.flatMap(p => p.village);
   const own = s.players[player]?.village ?? [];
   const others = everyone.filter(id => !own.includes(id));
+  /* with the amulet on your last card, no drawn card may swap anything (rulebook, amulet) */
+  const canSwap = own.some(id => !isAmuleted(s, id));
   switch (r) {
     case RANK.exposer: return own.filter(id => canFlip(s, id));
     case RANK.revealer: return everyone.filter(id => canFlip(s, id));
     case RANK.beholder: return own.filter(id => !card(s, id).faceUp && !isAmuleted(s, id));
     case RANK.apprenticeSeer: return others.filter(id => !card(s, id).faceUp && !isLocked(s, id, player));
     case RANK.seer: return everyone.filter(id => !card(s, id).faceUp && !isLocked(s, id, player));
-    case RANK.master: return s.discard.slice(0, -1);
-    case RANK.witch: return s.deck.length ? [s.deck[0] as CardId] : [];
-    case RANK.robber: return own.some(id => !isAmuleted(s, id)) ? others.filter(id => !isLocked(s, id, player)) : [];
+    case RANK.master: return canSwap ? s.discard.slice(0, -1) : [];
+    case RANK.witch: return canSwap && s.deck.length ? [s.deck[0] as CardId] : [];
+    case RANK.robber: return canSwap ? others.filter(id => !isLocked(s, id, player)) : [];
     default: return [];
   }
 }
@@ -340,8 +342,7 @@ function resolveAbility(s: GameState, player: number, targets: CardId[], ev: Gam
     const victim = s.players[ownerOf(s, stolen)];
     if (!victim) return;
     unlink(s, mine);
-    forget(s, stolen);
-    forget(s, mine);
+    /* nobody forgets what they saw: the robber still knows the card given away */
     victim.village[victim.village.indexOf(stolen)] = mine;
     own[own.indexOf(mine)] = stolen;
     ev.push({ type: 'swapped', player, a: stolen, b: mine });
@@ -379,6 +380,11 @@ function needStep(s: GameState, ...steps: Turn['step'][]): void {
   if (s.phase !== 'turn') fail('الان وقت این کار نیست');
   if (!steps.includes(s.turn.step)) fail('الان وقت این کار نیست');
 }
+/**
+ * The empath, bodyguard and amulet work at any moment of your turn (rulebook). Not while a matched
+ * set waits for its spot, because the burned cards still sit in the village until then.
+ */
+const SIDE_STEPS: Turn['step'][] = ['start', 'decide', 'confirm', 'ability', 'witch', 'placeEnd'];
 const swappable = (s: GameState, player: number): CardId[] =>
   (s.players[player]?.village ?? []).filter(id => !isAmuleted(s, id));
 
@@ -553,7 +559,7 @@ export function apply(state: GameState, player: number, cmd: Command): ApplyResu
       break;
     }
     case 'empathPeek': {
-      needStep(s, 'start', 'decide', 'confirm');
+      needStep(s, ...SIDE_STEPS);
       if (s.turn.empathUsed >= countFaceUp(s, player, RANK.empath)) fail('افسون‌گر رو نداری');
       if (!(s.players[player]?.village ?? []).includes(cmd.card)) fail('فقط کارت‌های خودت');
       if (card(s, cmd.card).faceUp || isAmuleted(s, cmd.card)) fail('این کارت قابل دیدن نیست');
@@ -564,7 +570,7 @@ export function apply(state: GameState, player: number, cmd: Command): ApplyResu
       break;
     }
     case 'guard': {
-      needStep(s, 'start', 'decide', 'confirm');
+      needStep(s, ...SIDE_STEPS);
       const own = s.players[player]?.village ?? [];
       const g = card(s, cmd.guard);
       if (!own.includes(cmd.guard) || !g.faceUp || g.rank !== RANK.bodyguard) fail('محافظ رو لازم است');
@@ -582,7 +588,7 @@ export function apply(state: GameState, player: number, cmd: Command): ApplyResu
       break;
     }
     case 'placeAmulet': {
-      needStep(s, 'start', 'decide', 'confirm');
+      needStep(s, ...SIDE_STEPS);
       if (s.amulet.holder !== player || !s.amulet.usable) fail('طلسم فعال نداری');
       if (s.amulet.on) fail('طلسم قبلاً گذاشته شده');
       if (!(s.players[player]?.village ?? []).includes(cmd.card) || isLinked(s, cmd.card)) fail('این کارت قابل طلسم نیست');

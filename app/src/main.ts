@@ -1,6 +1,6 @@
 /** The game screen. It reads only viewFor(), and every move goes through the engine's apply(). */
 import '@fontsource-variable/vazirmatn';
-import { botCommand } from './engine/bot';
+import { safeBotCommand } from './engine/bot';
 import { AMULET_SET, CALL_LIMIT, RANK, ROUNDS, hasDrawAbility } from './engine/cards';
 import { apply, newGame } from './engine/game';
 import { RuleError, type CardId, type Command, type GameEvent, type GameState } from './engine/types';
@@ -97,15 +97,23 @@ const U = {
 /* ---------- saving: a game survives closing the app ---------- */
 function save(): void {
   try {
-    if (game && game.phase !== 'gameEnd') localStorage.setItem(SAVE_KEY, JSON.stringify({ game, log: U.log.slice(-60) }));
+    /* cards still waiting for «دیدم» are saved too, or closing the app would lose them */
+    if (game && game.phase !== 'gameEnd') localStorage.setItem(SAVE_KEY, JSON.stringify({ game, log: U.log.slice(-60), peek: [...U.peek] }));
     else localStorage.removeItem(SAVE_KEY);
   } catch { /* private mode: the game still works, it just is not saved */ }
 }
-function saved(): { game: GameState; log: string[] } | null {
+interface Saved { game: GameState; log: string[]; peek?: [CardId, number][] }
+/** A save from an older version that this one cannot read is dropped, instead of breaking the game. */
+function saved(): Saved | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Saved;
+    viewFor(data.game, ME);
+    if (!Array.isArray(data.log) || data.game.players.length < 2) throw new Error('old save');
+    return data;
   } catch {
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* nothing to clean */ }
     return null;
   }
 }
@@ -214,7 +222,7 @@ async function runRivals(): Promise<void> {
   rivalsRunning = true;
   try {
     while (game && game.phase === 'turn' && game.current !== ME) {
-      await rivalMove(game.current, botCommand(game, game.current, Math.random));
+      await rivalMove(game.current, safeBotCommand(game, game.current, Math.random));
     }
   } finally {
     rivalsRunning = false;
@@ -297,7 +305,7 @@ function startGame(rivals: number): void {
 function rivalsPeek(): void {
   const s = game as GameState;
   s.players.forEach((_p, i) => {
-    if (i !== ME && !s.peeked[i]) dispatch(i, botCommand(game as GameState, i, Math.random));
+    if (i !== ME && !s.peeked[i]) dispatch(i, safeBotCommand(game as GameState, i, Math.random));
   });
 }
 function leave(): void {
@@ -307,11 +315,12 @@ function leave(): void {
   U.side = null; U.sheet = null; U.said = ''; U.note = ''; U.busy = ''; U.verb = ''; U.arrow = null;
   render();
 }
-function resume(data: { game: GameState; log: string[] }): void {
+function resume(data: Saved): void {
   gameId++;
   U.sheet = null;
   game = data.game;
   U.log = data.log;
+  U.peek = new Map(Array.isArray(data.peek) ? data.peek : []);
   settle();
 }
 
@@ -324,7 +333,7 @@ function controls(v: GameView): Controls {
     const first = v.phase === 'peek' || (game?.turn.step === 'start' && v.current !== ME) || U.peek.size === 2 && !game?.turn.source;
     return {
       prompt: first ? 'به خاطر بسپار' : 'فقط تو می‌بینی',
-      buttons: [{ slot: 'done', icon: 'eye', label: 'دیدم', kind: 'ok', fn: () => { U.peek.clear(); settle(); } }],
+      buttons: [{ slot: 'done', icon: 'eye', label: 'دیدم', kind: 'ok', fn: () => { U.peek.clear(); save(); settle(); } }],
     };
   }
   if (v.phase === 'peek') {
@@ -380,18 +389,20 @@ function controls(v: GameView): Controls {
       return { prompt, sideTools: true, buttons, can: (id, o) => o === ME && free(id), tap: toggle, hand: id => { U.focus = id; render(); } };
     }
     case 'placeSpot': return { prompt: 'کارت جدید کجا بنشیند؟', spot: i => act({ type: 'placeSpot', index: i }) };
-    case 'placeEnd': return { prompt: 'به کدام سر دهکده برود؟', end: side => act({ type: 'placeEnd', side }) };
+    case 'placeEnd': return { prompt: 'به کدام سر دهکده برود؟', sideTools: true, end: side => act({ type: 'placeEnd', side }) };
     case 'witch': {
       const top = v.hand[0] as CardView;
       const n = U.sel.size;
       return {
         prompt: 'با کارت حریف یا خودت عوض کن',
+        sideTools: true,
         can: (id, o) => (o === ME ? free(id) : v.witchTargets.includes(id)),
         tap: (id, o) => { if (o === ME) toggle(id); else act({ type: 'witchGive', target: id }); },
         buttons: [{ slot: 'move', icon: 'swap', label: 'معاوضه', off: !n, fn: () => void quietly(exchange(top.id, selected())) }],
       };
     }
-    case 'ability': return abilityControls(v);
+    /* the empath, bodyguard and amulet work at any moment of the turn */
+    case 'ability': return { ...abilityControls(v), sideTools: true };
     case 'confirm': default: {
       const buttons: Btn[] = [{ slot: 'done', icon: 'check', label: 'تأیید', kind: 'ok', fn: () => act({ type: 'confirm' }) }];
       if (v.canUndo) buttons.push({ slot: 'back', icon: 'back', label: 'پس گرفتن', fn: () => act({ type: 'undo' }) });
@@ -532,13 +543,14 @@ const round = (icon: string) => `<span class="ring">${icon}</span>`;
 function toolsEl(v: GameView, m: Controls): string {
   const by = new Map<Slot, Btn>();
   (m.buttons ?? []).forEach(b => by.set(b.slot, b));
+  /* a step's own button keeps its slot; a side tool only fills a free one */
   if (m.sideTools) {
     const own = v.players[ME]?.village ?? [];
-    if (v.empathLeft > 0 && own.some(c => !c.faceUp && v.amulet.on !== c.id)) by.set('eye', { slot: 'eye', icon: 'eye', label: `افسون‌گر ${fa(v.empathLeft)}`, fn: () => { U.side = { kind: 'empath' }; render(); } });
+    if (!by.has('eye') && v.empathLeft > 0 && own.some(c => !c.faceUp && v.amulet.on !== c.id)) by.set('eye', { slot: 'eye', icon: 'eye', label: `افسون‌گر ${fa(v.empathLeft)}`, fn: () => { U.side = { kind: 'empath' }; render(); } });
     const guards = own.filter(c => c.faceUp && c.rank === RANK.bodyguard && v.amulet.on !== c.id);
     /* with several bodyguards, each tap moves on to the next one */
-    if (guards.length) by.set('guard', { slot: 'guard', icon: 'shield', label: 'محافظ', fn: () => { const g = guards[U.guardNext++ % guards.length] as CardView; U.side = { kind: 'guard', guard: g.id }; render(); } });
-    if (v.amulet.holder === ME && v.amulet.usable && !v.amulet.on) by.set('amulet', { slot: 'amulet', label: 'طلسم', fn: () => { U.side = { kind: 'amulet' }; render(); } });
+    if (!by.has('guard') && guards.length) by.set('guard', { slot: 'guard', icon: 'shield', label: 'محافظ', fn: () => { const g = guards[U.guardNext++ % guards.length] as CardView; U.side = { kind: 'guard', guard: g.id }; render(); } });
+    if (!by.has('amulet') && v.amulet.holder === ME && v.amulet.usable && !v.amulet.on) by.set('amulet', { slot: 'amulet', label: 'طلسم', fn: () => { U.side = { kind: 'amulet' }; render(); } });
   }
   const resting: Record<Slot, keyof typeof ICON> = { back: 'call', amulet: 'ability', move: 'swap', guard: 'shield', eye: 'eye', more: 'more', done: 'check' };
   const order: Slot[] = ['back', 'amulet', 'move', 'guard', 'eye', ...(by.has('more') ? ['more' as const] : []), 'done'];

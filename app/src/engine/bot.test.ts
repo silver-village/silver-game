@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { botCommand } from './bot';
+import { botCommand, safeBotCommand } from './bot';
 import { apply, auditCards, newGame } from './game';
 import type { CardId, Command, GameState } from './types';
 
@@ -75,5 +75,36 @@ describe('rival', () => {
       hidden.forEach((id, i) => { other.cards[id]!.rank = ranks[i] as number; });
       expect(botCommand(other, 0, seeded(1))).toEqual(botCommand(s, 0, seeded(1)));
     }
+  });
+});
+
+describe('rival safety', () => {
+  it('always gives a legal move, through whole games', () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      let s = newGame(['A', 'B', 'C'], seed);
+      const rand = seeded(seed);
+      for (let step = 0; step < 5000 && s.phase !== 'gameEnd'; step++) {
+        const p = s.phase === 'peek' ? s.peeked.findIndex(x => !x) : s.current;
+        const cmd: Command = s.phase === 'roundEnd' ? { type: 'nextRound' } : safeBotCommand(s, p, rand);
+        s = apply(s, p, cmd).state;
+        auditCards(s);
+      }
+      expect(s.phase).toBe('gameEnd');
+    }
+  });
+  it('does not burn a cheap set for an expensive card', () => {
+    let s = newGame(['A', 'B'], 9);
+    s.phase = 'turn';
+    s.current = 1;
+    const ids = Object.values(s.cards);
+    const ones = ids.filter(c => c.rank === 1).slice(0, 2).map(c => c.id);
+    const twelve = ids.find(c => c.rank === 12)?.id as CardId;
+    const nines = ids.filter(c => c.rank === 5).slice(0, 1).map(c => c.id);
+    s.players[1]!.village = [...ones, ...nines];
+    s.players[1]!.known = [...ones, ...nines];
+    s.deck = [twelve, ...s.deck.filter(id => id !== twelve && !ones.includes(id) && !nines.includes(id))];
+    s = apply(s, 1, { type: 'draw' }).state;
+    const cmd = safeBotCommand(s, 1, seeded(2));
+    expect(cmd.type === 'exchange' && cmd.targets.some(id => ones.includes(id))).toBe(false);
   });
 });
