@@ -1,0 +1,188 @@
+/* The village at midnight: black branches, a cold moon behind the table, tarnished silver for
+   every control. The card art carries the colour, so everything around it stays nearly monochrome. */
+:root {
+  color-scheme: dark;
+  --night: #07090e;
+  --glass: rgba(20, 25, 36, .82);
+  --line: #39424f;
+  --ash: #9aa3b0;
+  --silver: #dfe4ea;
+  --ember: #d9583a;
+  --body: "Vazirmatn Variable", Tahoma, sans-serif;
+  --display: "Vazirmatn Variable", Tahoma, sans-serif;
+  --metal: linear-gradient(180deg, #f6f8fa 0%, #c3cad3 48%, #eef1f4 56%, #a4adb9 100%);
+  --app: min(100vw, 480px);
+  --cw: calc((var(--app) - 58px) / 5);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--night) url(art/bg.jpg) center / cover fixed; color: var(--silver); font-family: var(--body); font-size: 15px; line-height: 1.5; overscroll-behavior: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+#root { height: 100%; max-width: 480px; margin: 0 auto; position: relative; overflow: hidden; }
+.game { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 16px 14px; }
+
+/* silver lettering */
+.round, .about b, .panel h2, .start h1, .start h2, .recap b {
+  font-family: var(--display); font-weight: 900;
+  background: var(--metal); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* header */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.round { font-size: 18px; line-height: 1.5; }
+.tools { display: flex; gap: 6px; }
+.tool { padding: 3px 11px; border: 1px solid var(--line); border-radius: 99px; font-size: 13px; color: var(--ash); background: var(--glass); }
+
+/* rivals */
+.rivals { display: flex; flex-direction: column; gap: 6px; }
+.rival { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: var(--glass); border: 1px solid transparent; transition: border-color .2s; }
+.rival.on { border-color: var(--silver); box-shadow: 0 0 16px rgba(223,228,234,.25); }
+.who { width: 64px; flex: none; font-size: 13px; line-height: 1.3; }
+.who b { display: block; font-weight: 700; }
+.who small { color: var(--ash); font-size: 11px; }
+.mini { display: flex; gap: 4px; flex: 1; min-width: 0; }
+.mini .slot { flex: 0 1 40px; min-width: 20px; }
+
+/* log line */
+.ticker { min-height: 22px; font-size: 13px; color: var(--ash); text-align: right; width: 100%; display: flex; gap: 6px; }
+.ticker span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.ticker i { font-style: normal; color: var(--silver); flex: none; }
+
+/* table: the moon sits behind the piles */
+.table { position: relative; flex: 1; min-height: 120px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; align-content: center; justify-content: center;
+  background: radial-gradient(closest-side, rgba(214,224,240,.17), rgba(214,224,240,.05) 62%, transparent 100%); }
+.piles { display: flex; gap: 14px; flex: none; }
+.pile { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 104px; position: relative; }
+.pile > small { color: var(--ash); font-size: 11px; }
+.stack { position: relative; width: 100%; aspect-ratio: 5 / 7; border-radius: 8px; box-shadow: 0 8px 22px #000; }
+.stack .card { position: absolute; inset: 0; width: 100%; }
+.emptypile { position: absolute; inset: 0; border: 1px dashed var(--line); border-radius: 8px; }
+.squires { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.squires small { color: var(--ash); font-size: 11px; }
+.squires div { display: flex; gap: 4px; }
+.squires .card { width: 52px; }
+
+/* the card you are deciding about */
+.stage { position: absolute; inset: 0; z-index: 4; display: flex; gap: 12px; align-items: center; justify-content: center; padding: 0 4px; background: rgba(7,9,14,.82); border-radius: 12px; }
+.hand { display: flex; gap: 6px; flex: none; }
+.hand .card { width: 112px; box-shadow: 0 10px 28px #000; }
+.hand.many .card { width: 72px; }
+.about { min-width: 0; flex: 1; }
+.about b { font-size: 20px; display: block; line-height: 1.5; }
+.about p { margin: 2px 0 0; font-size: 13px; line-height: 1.55; }
+
+/* a rival's turn, told one step at a time */
+.spot { cursor: pointer; }
+.spot .card { pointer-events: none; }
+.lines { margin: 5px 0 3px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: 13px; line-height: 1.45; color: var(--ash); }
+.lines .now { color: var(--silver); font-weight: 700; font-size: 14px; }
+.spot small { color: var(--ash); font-size: 11px; }
+.recap { background: var(--glass); border-right: 2px solid var(--silver); border-radius: 6px; padding: 5px 10px; }
+.recap b { font-size: 15px; line-height: 1.6; }
+.recap ul { margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.5; }
+
+.who em { font-style: normal; font-weight: 700; color: var(--ember); font-size: 13px; }
+.eye { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); color: #fff; animation: look 1.1s ease infinite; }
+.eye svg { width: 62%; }
+@keyframes look { 50% { opacity: .35; } }
+.arrow { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.arrow line { stroke-dasharray: 1; animation: draw .45s ease both; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* prompt */
+.prompt { font-size: 16px; font-weight: 700; line-height: 1.5; min-height: 48px; color: #fff; }
+.prompt.wait { opacity: .75; }
+.note { position: absolute; inset: auto 0 4px; z-index: 5; font-size: 13px; background: #141923; border-right: 2px solid var(--silver); padding: 6px 10px; border-radius: 6px; text-align: right; }
+
+/* side abilities */
+.chips { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; min-height: 32px; }
+.chip { flex: none; }
+.chip { padding: 4px 11px; border-radius: 99px; background: var(--glass); border: 1px solid var(--silver); font-size: 13px; }
+
+/* village */
+.village { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding-top: 12px; }
+.village.n6 { --cw: calc((var(--app) - 62px) / 6); }
+.village .slot { width: var(--cw); }
+.slot { position: relative; }
+.gap { display: block; width: var(--cw); aspect-ratio: 5 / 7; border: 2px dashed var(--silver); border-radius: 8px; font-size: 13px; background: rgba(223,228,234,.08); }
+
+/* cards: real art fills the card, and Persian names cover the small printed text */
+.card { display: block; width: 100%; aspect-ratio: 5 / 7; border-radius: 8px; position: relative; overflow: hidden; background: #000 center / cover no-repeat; text-align: center; transition: translate .16s ease, opacity .16s ease, box-shadow .16s ease; }
+.card.back { background-image: url(art/back.jpg); }
+.card .nm { position: absolute; inset: auto 0 0; padding: 3px 2px 2px; font-size: 11px; font-weight: 700; line-height: 1.25; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.92) 35%); }
+.card .pip { display: none; position: absolute; inset: auto 0 0; font-size: 13px; font-weight: 700; color: #fff; background: rgba(0,0,0,.72); line-height: 1.4; }
+.mini .card .nm, .squires .card .nm, .guard .card .nm { display: none; }
+.mini .card .pip, .squires .card .pip, .guard .card .pip { display: block; }
+.hand .card .nm { font-size: 14px; padding-top: 12px; }
+.pile .card .nm { font-size: 13px; }
+.card[disabled] { cursor: default; }
+.pick .card:not([disabled]), .card.go { box-shadow: 0 0 0 2px var(--silver), 0 0 16px rgba(223,228,234,.65); }
+.dim { opacity: .38; }
+.card.sel, .pick .card.sel:not([disabled]) { translate: 0 -12px; box-shadow: 0 0 0 3px var(--ember), 0 10px 18px rgba(0,0,0,.6); }
+.card.pulse { animation: pulse 1s ease 3; }
+.card.marked { box-shadow: 0 0 0 3px var(--ember), 0 0 18px rgba(217,88,58,.8); }
+.card.peek { box-shadow: 0 0 0 3px var(--silver), 0 0 22px rgba(223,228,234,.9); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 4px var(--ember), 0 0 22px rgba(217,88,58,.95); } }
+.guard { position: absolute; left: -5px; bottom: -6px; width: 56%; z-index: 2; }
+.seal { position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; z-index: 3; pointer-events: none; }
+.seal img, .token img { display: block; width: 100%; height: 100%; border-radius: 50%; mix-blend-mode: screen; }
+.token { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; }
+
+/* actions */
+.actions { display: flex; gap: 8px; min-height: 46px; }
+.act { flex: 1; padding: 10px 8px; border-radius: 9px; font-weight: 700; font-size: 14px; border: 1px solid var(--line); line-height: 1.3; background: var(--glass); }
+.act.primary { background: var(--metal); color: #11151c; border-color: #eef1f4; }
+.act.burn { background: linear-gradient(180deg, #e0694a, #a93a22); color: #fff; border-color: #c9502f; }
+.act[disabled] { opacity: .4; cursor: default; }
+.mine { text-align: center; font-size: 12px; color: var(--ash); }
+
+/* sheets */
+.sheet { position: absolute; inset: 0; background: rgba(3,4,7,.78); display: flex; flex-direction: column; justify-content: flex-end; z-index: 10; }
+.panel { background: #141923; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 16px; max-height: 88%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.panel h2 { margin: 0; font-size: 24px; line-height: 1.5; text-wrap: balance; }
+.panel p { margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.row-help { display: grid; grid-template-columns: 34px 1fr; gap: 2px 8px; align-items: baseline; }
+.row-help b { font-size: 19px; font-weight: 700; color: var(--silver); }
+.row-help p { margin: 0; font-size: 13px; }
+.row-help p strong { display: block; }
+.logs { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+.score { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+.score th, .score td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: center; }
+.score th:first-child, .score td:first-child { text-align: right; }
+.score th { color: var(--ash); font-weight: 500; font-size: 12px; }
+.res { display: flex; flex-direction: column; gap: 4px; }
+.res header { display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; gap: 8px; }
+.res header span:last-child { font-weight: 400; color: var(--ash); font-size: 13px; }
+.res .mini .slot { flex: 0 1 46px; }
+
+/* start */
+.start { height: 100%; overflow-y: auto; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 14px; }
+.hero { height: 176px; flex: none; display: flex; align-items: flex-end; justify-content: center; background: radial-gradient(closest-side, rgba(214,224,240,.32), transparent); }
+.fan { position: relative; width: 100%; height: 150px; }
+.fan span { position: absolute; bottom: 0; left: 50%; width: 94px; aspect-ratio: 5 / 7; margin-left: -47px; border-radius: 8px; background: #000 center / cover; box-shadow: 0 8px 20px #000; transform-origin: 50% 130%; }
+.fan span:nth-child(1) { transform: rotate(-26deg); }
+.fan span:nth-child(2) { transform: rotate(-13deg); }
+.fan span:nth-child(3) { transform: rotate(0deg); }
+.fan span:nth-child(4) { transform: rotate(13deg); }
+.fan span:nth-child(5) { transform: rotate(26deg); }
+.start h1 { margin: 0; font-size: 58px; line-height: 1.3; text-align: center; }
+.start > p { margin: 0; color: var(--ash); text-align: center; }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--glass); }
+.seg button.on { background: var(--metal); color: #11151c; border-color: #eef1f4; font-weight: 700; }
+.start h2 { margin: 6px 0 0; font-size: 21px; line-height: 1.5; }
+.lab { font-size: 13px; color: var(--ash); }
+.scen { display: flex; flex-direction: column; gap: 6px; }
+.scen button { text-align: right; padding: 9px 12px; border-radius: 9px; background: var(--glass); border: 1px solid #232a36; }
+.scen b { display: block; font-size: 14px; }
+.scen small { color: var(--ash); font-size: 12px; line-height: 1.4; display: block; }
+
+@media (max-height: 700px) {
+  .game { gap: 5px; padding: 8px 16px 10px; }
+  .hand .card { width: 80px; }
+  .pile { width: 76px; }
+  .about p { font-size: 12px; }
+  .prompt { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } .card.pulse { animation: none; box-shadow: 0 0 0 3px var(--ember); } }
