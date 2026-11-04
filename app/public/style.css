@@ -109,12 +109,11 @@ button:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
 /* cards: real art fills the card, and Persian names cover the small printed text */
 .card { display: block; width: 100%; aspect-ratio: 5 / 7; border-radius: 8px; position: relative; overflow: hidden; background: #000 center / cover no-repeat; text-align: center; transition: translate .16s ease, opacity .16s ease, box-shadow .16s ease; }
 .card.back { background-image: url(art/back.jpg); }
-.card .nm { position: absolute; inset: auto 0 0; padding: 3px 2px 2px; font-size: 11px; font-weight: 700; line-height: 1.25; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.92) 35%); }
+/* the name and ability are printed on the scanned card */
+.card .nm { display: none; }
 .card .pip { display: none; position: absolute; inset: auto 0 0; font-size: 13px; font-weight: 700; color: #fff; background: rgba(0,0,0,.72); line-height: 1.4; }
 .mini .card .nm, .squires .card .nm, .guard .card .nm { display: none; }
 .mini .card .pip, .squires .card .pip, .guard .card .pip { display: block; }
-.hand .card .nm { font-size: 14px; padding-top: 12px; }
-.pile .card .nm { font-size: 13px; }
 .card[disabled] { cursor: default; }
 .pick .card:not([disabled]), .card.go { box-shadow: 0 0 0 2px var(--silver), 0 0 16px rgba(223,228,234,.65); }
 .dim { opacity: .38; }

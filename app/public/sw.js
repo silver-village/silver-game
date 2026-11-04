@@ -4,7 +4,9 @@ const ranks = Array.from({ length: 14 }, (_, r) => `art/c${r}.jpg`);
 const PRECACHE = ['./', 'style.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'art/back.jpg', 'art/bg.jpg', 'art/amulet.jpg', ...ranks, /* filled in by the build */ __ASSETS__];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  /* 'reload' skips the browser's own cache, so replaced images really arrive */
+  const fresh = PRECACHE.map(url => new Request(url, { cache: 'reload' }));
+  event.waitUntil(caches.open(CACHE).then(c => c.addAll(fresh)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
