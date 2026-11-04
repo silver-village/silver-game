@@ -41,11 +41,19 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .top-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 14px 6px; }
 .round-title { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .round-title h1 { font-size: 23px; font-weight: 800; line-height: 1.3; }
-.turn-disc { flex: none; display: grid; place-items: center; width: 24px; height: 24px; font-size: 13px; font-weight: 800; line-height: 1; color: #fff; background: #5f6876; border: 1.5px solid #fff; border-radius: 50%; box-shadow: 0 0 10px rgba(255,255,255,.55); }
+/* who plays now, then who comes next (in reading order) */
+.order { flex: none; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 2px 0; min-height: 24px; padding: 0 10px 6px; list-style: none; font-size: 12px; font-weight: 700; line-height: 18px; }
+.order li { position: relative; padding: 0 9px; white-space: nowrap; color: var(--ink-soft); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; }
+.order li + li { margin-inline-start: 18px; }
+.order li + li::before { content: "←"; position: absolute; inset-inline-start: -15px; color: rgba(255,255,255,.55); }
+.order li.me { font-weight: 800; }
+.order li.now { color: #1d1236; font-weight: 800; background: #fff; border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,.6); }
 
 /* 2. rivals */
 .rivals { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 0 6px; }
 .rival-panel { position: relative; }
+.rivals:not(.many) .rival-panel { padding: 3px; border-radius: 10px; border: 1px solid transparent; }
+.rivals:not(.many) .rival-panel.on { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); }
 .rival-avatar { display: none; }
 .cards-row-rival, .cards-row-player { display: flex; justify-content: center; gap: 4px; }
 .slot { position: relative; flex: 0 0 calc((100% - (var(--n, 5) - 1) * 4px) / var(--n, 5)); min-width: 0; }
@@ -61,8 +69,9 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .rivals.many .amulet-token { inset: 50% auto auto 2px; translate: 0 -50%; width: 28px; height: 28px; }
 
 /* 3. center: squires (on their side), deck, discard */
-.center-table { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
-.piles { --pile: calc(var(--app) * .26); position: relative; display: flex; gap: 6px; }
+.center-table { position: relative; flex: 1; min-height: 0; container-type: size; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
+/* the piles never grow taller than the space left in the middle */
+.piles { --pile: min(calc(var(--app) * .26), 86cqh * 5 / 7); position: relative; display: flex; gap: 6px; }
 .pile { position: relative; width: var(--pile); aspect-ratio: 5 / 7; }
 .pile > *, .pile .card { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
 .deck-stack-card { border-radius: var(--radius); background: #090d14 url(art/back.jpg) center / cover; box-shadow: 0 6px 14px rgba(0,0,0,.5); }
@@ -89,10 +98,12 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* 4. the player's village: a band across the screen */
 .village-section { position: relative; flex: none; padding: 8px 2px; background: rgba(255,255,255,.14); border-block: 1px solid var(--line); }
+.village-section.on { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.7); box-shadow: 0 0 18px rgba(var(--halo),.45); }
 .village-section .amulet-token { bottom: auto; top: -52px; }
 .village-section .called { bottom: auto; top: -10px; }
 .cards-row-player { gap: 3px; }
-.cards-row-player .slot { flex-basis: calc((100% - (var(--n, 5) - 1) * 3px) / var(--n, 5)); }
+.cards-row-player .slot { flex-basis: calc((100% - (var(--n, 5) - 1) * 3px) / var(--n, 5)); max-width: 13vh; }
+.rivals:not(.many) .slot { max-width: 11vh; }
 .gap { display: block; width: 100%; aspect-ratio: 5 / 7; border: 2px dashed #fff; border-radius: var(--radius); font-size: 12px; font-weight: 800; background: rgba(var(--halo),.35); animation: breathe 1.4s ease-in-out infinite; }
 
 /* cards */
@@ -146,6 +157,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .panel-close { position: absolute; top: 12px; inset-inline-end: 12px; z-index: 2; display: grid; place-items: center; width: 36px; height: 36px; padding: 8px; background: #6e7385; border: 2px solid #fff; border-radius: 50%; }
 .game-btn { flex: none; padding: 12px; font-size: 15px; font-weight: 800; color: #fff; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.75); border-radius: 12px; }
 .game-btn.primary { background: linear-gradient(180deg, #a657cd, #7a3aa6); border-color: #fff; box-shadow: 0 0 18px rgba(var(--halo),.6); }
+.game-btn.danger { background: rgba(200,60,50,.25); border-color: rgba(255,140,120,.85); }
 .game-btn:active { scale: .98; }
 .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .row-help { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; }
@@ -196,7 +208,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .top-bar { padding-block: 6px 4px; }
   .round-btn { width: 38px; }
   .round-title h1 { font-size: 20px; }
-  .piles { --pile: min(calc(var(--app) * .2), 16vh); }
+  .piles { --pile: min(calc(var(--app) * .2), 16vh, 86cqh * 5 / 7); }
   .tools { min-height: 62px; padding-top: 5px; }
   .tool .ring { width: min(100%, 38px); }
   .message { min-height: 74px; }
@@ -204,4 +216,25 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .message span { font-size: 12.5px; line-height: 1.4; }
   .village-section { padding-block: 5px; }
 }
+@media (max-height: 600px) {
+  .order { padding-bottom: 3px; }
+  .rivals { gap: 3px; }
+  .rivals.many .slot { flex-basis: min(calc((100% - 18px) / var(--n, 5)), 5.5vh); }
+  .cards-row-player .slot { max-width: 11vh; }
+}
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } .card.pulse, .card.go, .pick .card, .gap { animation: none; } }
+
+/* the table is laid out for a tall screen; a short wide one asks to be turned instead of breaking */
+.rotate { display: none; }
+@media (orientation: landscape) and (max-height: 520px) {
+  #root { visibility: hidden; }
+  .rotate { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: #0e1230; }
+  .rotate svg { width: 64px; height: 64px; }
+  .rotate b { font-size: 18px; font-weight: 800; }
+  .rotate span { font-size: 14px; color: var(--ink-soft); }
+  .rotate .wide { display: none; }
+}
+@media (orientation: landscape) and (max-height: 520px) and (pointer: fine) {
+  .rotate .phone { display: none; }
+  .rotate .wide { display: inline; }
+}

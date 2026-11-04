@@ -57,6 +57,8 @@ type Slot = 'back' | 'amulet' | 'move' | 'guard' | 'eye' | 'more' | 'done';
 interface Btn { slot: Slot; label: string; icon?: keyof typeof ICON; kind?: 'burn' | 'ok'; off?: boolean; fn: () => void }
 interface Controls {
   prompt: string;
+  /** the second line; without it the line explains the card in hand */
+  sub?: string;
   wait?: boolean;
   can?: (id: CardId, owner: number) => boolean;
   tap?: (id: CardId, owner: number) => void;
@@ -87,7 +89,9 @@ const U = {
   side: null as Side | null,
   stolen: null as CardId | null,
   focus: null as CardId | null,
-  sheet: null as 'score' | 'help' | 'settings' | null,
+  sheet: null as 'score' | 'help' | 'settings' | 'newGame' | null,
+  /** cards in the player's last set that did not match (0: none), so the next step can say why */
+  setMiss: 0,
   said: '',
   guardNext: 0,
   note: '',
@@ -164,6 +168,7 @@ function dispatch(player: number, cmd: Command): GameEvent[] {
     logEvent(e);
     if (player !== ME && game.phase === 'turn' && U.log.length > before) U.said = U.log[U.log.length - 1] as string;
     if (e.type === 'saw' && e.to === ME && !game.turn.hand.includes(e.card)) U.peek.set(e.card, e.rank);
+    if (e.type === 'revealedSet' && player === ME) U.setMiss = e.matched ? 0 : e.cards.length;
     if (player === ME) continue;
     const touched = e.type === 'flipped' || e.type === 'looked' ? [e.card] : e.type === 'swapped' ? [e.a, e.b] : [];
     touched.forEach(id => { U.pulse.add(id); if (mine.has(id)) U.mark.add(id); });
@@ -384,17 +389,30 @@ function controls(v: GameView): Controls {
       }
       if (!n && game?.turn.source === 'deck' && hand.length <= v.rascalExtra && v.deckCount) buttons.push({ slot: 'more', icon: 'more', label: 'کارت بیشتر', fn: () => act({ type: 'drawMore' }) });
       if (!n && fromPile) buttons.push({ slot: 'back', icon: 'back', label: 'برگرداندن', fn: () => act({ type: 'returnCard' }) });
-      const prompt = hand.length > 1 ? 'یکی را نگه دار'
+      const prompt = n > 1 ? setPrompt(n) : hand.length > 1 ? 'یکی را نگه دار'
         : burnable ? 'بسوزان یا عوض کن' : 'با کدام کارت عوض شود؟';
-      return { prompt, sideTools: true, buttons, can: (id, o) => o === ME && free(id), tap: toggle, hand: id => { U.focus = id; render(); } };
+      return { prompt, sub: n > 1 ? setRisk(n) : undefined, sideTools: true, buttons, can: (id, o) => o === ME && free(id), tap: toggle, hand: id => { U.focus = id; render(); } };
     }
     case 'placeSpot': return { prompt: 'کارت جدید کجا بنشیند؟', spot: i => act({ type: 'placeSpot', index: i }) };
-    case 'placeEnd': return { prompt: 'به کدام سر دهکده برود؟', sideTools: true, end: side => act({ type: 'placeEnd', side }) };
+    case 'placeEnd': {
+      const end = (side: 'start' | 'end') => act({ type: 'placeEnd', side });
+      if (game?.turn.placing?.unseen) {
+        return { prompt: 'کارت جریمه: کدام سر دهکده؟', sub: 'ست ۳ کارتی یا بیشتر هم‌عدد نبود، پس یک کارت ندیده از دسته هم جریمه می‌گیری.', sideTools: true, end };
+      }
+      const extra = U.setMiss >= 3 ? ' بعد از آن، یک کارت ندیده هم از دسته جریمه می‌گیری.' : '';
+      return {
+        prompt: U.setMiss ? 'ست هم‌عدد نبود: کدام سر دهکده؟' : 'به کدام سر دهکده برود؟',
+        sub: U.setMiss ? `کارت‌های ست پشت‌ورو سر جایشان برگشتند (همه آن‌ها را دیدند). کارت جدید نمی‌سوزد و به یک سر دهکده‌ات اضافه می‌شود.${extra}` : undefined,
+        sideTools: true,
+        end,
+      };
+    }
     case 'witch': {
       const top = v.hand[0] as CardView;
       const n = U.sel.size;
       return {
-        prompt: 'با کارت حریف یا خودت عوض کن',
+        prompt: n > 1 ? setPrompt(n) : 'با کارت حریف یا خودت عوض کن',
+        sub: n > 1 ? setRisk(n) : undefined,
         sideTools: true,
         can: (id, o) => (o === ME ? free(id) : v.witchTargets.includes(id)),
         tap: (id, o) => { if (o === ME) toggle(id); else act({ type: 'witchGive', target: id }); },
@@ -410,6 +428,9 @@ function controls(v: GameView): Controls {
     }
   }
 }
+/* choosing several cards means a set, which costs a card when the numbers differ */
+const setPrompt = (n: number) => `ست ${fa(n)} کارتی: همه باید هم‌عدد باشند`;
+const setRisk = (n: number) => `اگر هم‌عدد نباشند، کارت‌ها برمی‌گردند و کارت جدید هم به دهکده‌ات اضافه می‌شود${n >= 3 ? '، به‌علاوه‌ی یک کارت جریمه از دسته' : ''}.`;
 function abilityControls(v: GameView): Controls {
   const r = v.pending as number;
   const back: Btn[] = [{ slot: 'done', icon: 'check', label: 'رد کردن', fn: () => act({ type: 'skipAbility' }) }];
@@ -565,7 +586,8 @@ function messageEl(v: GameView, m: Controls): string {
   let main = m.prompt;
   if (v.phase === 'turn' && v.current !== ME && U.verb) main = `${nameIn(v.current)} ${U.verb}`;
   let sub = '';
-  if (v.current === ME && v.hand.length && !U.peek.size) {
+  if (m.sub) sub = m.sub;
+  else if (v.current === ME && v.hand.length && !U.peek.size) {
     const focus = v.hand.find(c => c.id === U.focus) ?? (v.hand[0] as CardView);
     sub = TEXT[focus.rank ?? -1] ?? '';
   } else if (v.current === ME && U.said) sub = U.said;
@@ -606,21 +628,31 @@ function gameEl(): string {
       stage = `<div class="stage"><div class="hand${v.hand.length > 1 ? ' many' : ''}">${cards}</div></div>`;
     }
   }
+  /* the card waiting for a place stays in sight, so it is clear what goes where */
+  const placing = v.current === ME && (v.step === 'placeEnd' || v.step === 'placeSpot') ? game?.turn.placing : null;
+  if (placing) {
+    const pc: CardView = { id: placing.card, rank: placing.unseen ? null : (game as GameState).cards[placing.card]?.rank ?? null, faceUp: false, guarding: null };
+    stage = `<div class="stage"><div class="hand">${cardEl(pc)}</div></div>`;
+  }
+  const n = v.players.length;
+  const order = Array.from({ length: n }, (_, k) => (v.current + k) % n)
+    .map((i, k) => `<li class="${k === 0 && v.phase === 'turn' ? 'now' : ''}${i === ME ? ' me' : ''}">${nameIn(i)}</li>`).join('');
+  const orderEl = v.phase === 'turn' || v.phase === 'peek' ? `<ol class="order" aria-label="ترتیب نوبت‌ها، از نوبت فعلی">${order}</ol>` : '<ol class="order"></ol>';
   const mine = villageEl(v, ME, m);
   const note = U.note ? `<button type="button" class="note" data-act="${rb(() => { U.note = ''; render(); })}">${U.note}</button>` : '';
   const skip = v.current !== ME && v.phase === 'turn' ? ` data-act="${rb(() => skipNow?.())}"` : '';
-  const rivalTurn = v.phase === 'turn' && v.current !== ME ? `<span class="turn-disc" aria-label="نوبت ${nameIn(v.current)}">${fa(v.current)}</span>` : '';
   const topBtn = (icon: string, labelText: string, fn: () => void) => `<button type="button" class="round-btn" aria-label="${labelText}" data-act="${rb(fn)}">${round(icon)}</button>`;
   return `<div class="game">
     <header class="top-bar">
       ${topBtn(ICON.home, 'خانه', leave)}
       ${topBtn(ICON.sheet, 'امتیاز و تاریخچه', () => { U.sheet = 'score'; render(); })}
-      <div class="round-title">${rivalTurn}<h1 aria-label="دور ${fa(v.round)} از ${fa(ROUNDS)}">دور ${fa(v.round)}</h1></div>
+      <div class="round-title"><h1 aria-label="دور ${fa(v.round)} از ${fa(ROUNDS)}">دور ${fa(v.round)}</h1></div>
       ${topBtn(ICON.help, 'راهنمای کارت‌ها', () => { U.sheet = 'help'; render(); })}
     </header>
+    ${orderEl}
     <div class="rivals${rivalCount > 1 ? ' many' : ''}">${rivals}</div>
     <main class="center-table"${skip}>${piles}${stage}${note}</main>
-    <section class="village-section" aria-label="دهکده‌ی تو">${amuletToken(v, ME)}${v.caller === ME ? '<span class="called">سرشماری کردی</span>' : ''}
+    <section class="village-section${v.phase === 'turn' && v.current === ME ? ' on' : ''}" aria-label="دهکده‌ی تو">${amuletToken(v, ME)}${v.caller === ME ? '<span class="called">سرشماری کردی</span>' : ''}
       <div class="cards-row-player${m.can ? ' pick' : ''}" style="--n:${columns(mine.count)}">${mine.html}</div></section>
     <nav class="tools" aria-label="کارها">${toolsEl(v, m)}</nav>
     ${messageEl(v, m)}
@@ -679,6 +711,8 @@ function startEl(): string {
   const fan = [13, 10, 0, 12, 9].map(r => `<span style="background-image:url(art/c${r}.jpg)"></span>`).join('');
   const data = saved();
   const big = (icon: string, text: string, fn?: () => void) => `<button type="button" class="round-btn big"${fn ? ` data-act="${rb(fn)}"` : ' disabled'}>${round(icon)}<small>${text}</small></button>`;
+  /* a half-played game is never thrown away without asking */
+  const fresh = () => { if (data) { U.sheet = 'newGame'; render(); } else startGame(rivalsWanted); };
   const small = (icon: string, text: string, fn: () => void) => `<button type="button" class="round-btn"  data-act="${rb(fn)}">${round(icon)}<small>${text}</small></button>`;
   const open = (name: 'settings' | 'help') => () => { U.sheet = name; render(); };
   const install = installEvent ? small(ICON.install, 'نصب', () => { installEvent?.prompt(); installEvent = null; render(); }) : '';
@@ -688,9 +722,16 @@ function startEl(): string {
     const seg = [1, 2, 3].map(n => `<button type="button" class="${rivalsWanted === n ? 'on' : ''}" data-act="${rb(() => { rivalsWanted = n; render(); })}">${fa(n)} رقیب</button>`).join('');
     sheet = panel('تنظیمات', `<div class="lab">تعداد رقیب</div><div class="seg">${seg}</div>`);
   }
+  if (U.sheet === 'newGame' && data) {
+    const g = data.game;
+    const where = g.phase === 'roundEnd' ? `پایان دور ${fa(g.round)}` : `دور ${fa(g.round)} از ${fa(ROUNDS)}`;
+    sheet = panel('بازی جدید؟', `<p>یک بازی نیمه‌کاره داری (${where}، ${fa(g.players.length - 1)} رقیب). اگر بازی جدید شروع کنی، آن بازی پاک می‌شود و برنمی‌گردد.</p>
+      <button type="button" class="game-btn primary" data-act="${rb(() => resume(data))}">ادامه‌ی همان بازی</button>
+      <button type="button" class="game-btn danger" data-act="${rb(() => startGame(rivalsWanted))}">پاکش کن، بازی جدید</button>`);
+  }
   return `<div class="start">
     <div class="logo"><h1>سیلور</h1><p>طلسم</p></div>
-    <div class="main-actions">${big(ICON.star, 'بازی جدید', () => startGame(rivalsWanted))}${big(ICON.resume, 'ادامه', data ? () => resume(data) : undefined)}</div>
+    <div class="main-actions">${big(ICON.star, 'بازی جدید', fresh)}${big(ICON.resume, 'ادامه', data ? () => resume(data) : undefined)}</div>
     <div class="hero" aria-hidden="true"><div class="fan">${fan}</div></div>
     <nav class="home-tools">${small(ICON.gear, `${fa(rivalsWanted)} رقیب`, open('settings'))}${small(ICON.cards, 'کارت‌ها', open('help'))}${install}</nav>
     ${sheet}</div>`;
