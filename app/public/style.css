@@ -6,7 +6,7 @@
   --ink-soft: rgba(255,255,255,.78);
   --halo: 176,92,214;
   --line: rgba(255,255,255,.28);
-  --radius: 5px;
+  --radius: 5% / 3.6%; /* a little rounder than the print, so no scanned page shows at the corners */
   --speckle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .78 0 0 0 0 .9 0 0 0 0 1 0 0 0 6 -3.55'/%3E%3C/filter%3E%3Crect width='360' height='360' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E");
   font-family: "Vazirmatn Variable", -apple-system, BlinkMacSystemFont, Tahoma, sans-serif;
 }
@@ -102,7 +102,6 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .card .nm { display: none; }
 .card .pip { display: none; position: absolute; inset: auto 0 0; font-size: 11px; font-weight: 800; color: #fff; background: rgba(0,0,0,.72); line-height: 1.4; }
 .rivals.many .pip, .guard .pip { display: block; }
-.mini-card { border-radius: 4px; }
 .pick .card:not([disabled]), .card.go { box-shadow: 0 0 0 2px #fff, 0 0 16px 3px rgba(214,170,255,.9); animation: breathe 1.6s ease-in-out infinite; }
 .dim { opacity: .34; }
 .card.sel, .pick .card.sel:not([disabled]) { translate: 0 -14px; z-index: 5; animation: none; box-shadow: 0 0 0 3px #fff, 0 10px 22px rgba(0,0,0,.6), 0 0 22px 6px rgba(143,240,190,.85); }
@@ -134,9 +133,9 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .tool.burn .ring { --halo: 240,92,60; background: radial-gradient(circle, rgba(226,78,50,.95), rgba(160,44,34,.72)); }
 
 /* 6. what is happening */
-.message { flex: none; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 66px; padding: 2px 14px 8px; text-align: center; }
-.message b { font-size: 16px; font-weight: 700; line-height: 1.4; }
-.message span { max-width: 100%; font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.message { flex: none; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; min-height: 92px; padding: 2px 14px 8px; text-align: center; }
+.message b { font-size: 15px; font-weight: 800; line-height: 1.35; }
+.message span { max-width: 100%; font-size: 14px; font-weight: 500; line-height: 1.5; color: #fff; }
 
 /* dialogs */
 .sheet { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(9,8,28,.62); }
@@ -150,7 +149,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .game-btn:active { scale: .98; }
 .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .row-help { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; }
-.thumb { display: block; aspect-ratio: 5 / 7; border-radius: 4px; background: #000 center / cover; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
+.thumb { display: block; aspect-ratio: 5 / 7; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
 .row-help p { font-size: 13px; }
 .row-help strong { display: inline-block; font-size: 14.5px; color: #fff; }
 .row-help small { margin-inline-start: 8px; font-size: 11.5px; opacity: .7; }
@@ -185,7 +184,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .round-btn.big .ring { box-shadow: 0 0 34px 16px rgba(var(--halo),.55); }
 .hero { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
 .fan { position: relative; width: 100%; height: min(38vh, 300px); }
-.fan span { position: absolute; bottom: 4%; left: 50%; height: 64%; aspect-ratio: 5 / 7; translate: -50% 0; border-radius: 8px; background: #000 center / cover; box-shadow: 0 12px 26px rgba(20,14,60,.55); transform-origin: 50% 135%; }
+.fan span { position: absolute; bottom: 4%; left: 50%; height: 64%; aspect-ratio: 5 / 7; translate: -50% 0; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 12px 26px rgba(20,14,60,.55); transform-origin: 50% 135%; }
 .fan span:nth-child(1) { rotate: -26deg; }
 .fan span:nth-child(2) { rotate: -13deg; }
 .fan span:nth-child(4) { rotate: 13deg; }
@@ -200,8 +199,9 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .piles { --pile: min(calc(var(--app) * .2), 16vh); }
   .tools { min-height: 62px; padding-top: 5px; }
   .tool .ring { width: min(100%, 38px); }
-  .message { min-height: 54px; }
-  .message b { font-size: 14.5px; }
+  .message { min-height: 74px; }
+  .message b { font-size: 14px; }
+  .message span { font-size: 12.5px; line-height: 1.4; }
   .village-section { padding-block: 5px; }
 }
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } .card.pulse, .card.go, .pick .card, .gap { animation: none; } }

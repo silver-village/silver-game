@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 W, H = 750, 1050
-INSET = 4  # trims the pale halo the scanner leaves around each card
+INSET = 7  # trims the pale halo the scanner leaves around each card
 
 
 def find_rects(img, min_area):
@@ -31,9 +31,52 @@ def corners(rect):
     return np.float32([top[0], top[1], bottom[1], bottom[0]])
 
 
+def edge_line(img, start, end, inward, reach=30):
+    """Fit a straight line to one real card edge, by walking in from the white page along many short paths."""
+    found = []
+    for t in np.linspace(.14, .86, 90):  # stays clear of the rounded corners
+        base = start + (end - start) * t
+        samples = [base + inward * d for d in range(-reach, reach + 1)]
+        solid = []
+        for x, y in samples:
+            col, row = int(round(x)), int(round(y))
+            if not (0 <= row < img.shape[0] and 0 <= col < img.shape[1]):
+                solid.append(False)  # past the end of the scan counts as page
+                continue
+            px = img[row, col].astype(int)
+            solid.append(px.min() < 222 or px.max() - px.min() > 20)
+        if solid[0]:
+            continue  # the path began on something other than clean page
+        for i in range(len(solid) - 6):
+            if all(solid[i:i + 6]):
+                found.append(samples[i])
+                break
+    points = np.float32(found)
+    vx, vy, x0, y0 = cv2.fitLine(points, cv2.DIST_HUBER, 0, .01, .01).ravel()
+    return np.array([x0, y0]), np.array([vx, vy])
+
+
+def meet(a, b):
+    (p, u), (q, v) = a, b
+    t = np.linalg.solve(np.array([u, -v]).T, q - p)[0]
+    return p + u * t
+
+
+def exact_corners(img, rect):
+    """The true corners: where the four fitted edges cross, which also undoes any slight skew."""
+    tl, tr, br, bl = corners(rect)
+    middle = (tl + tr + br + bl) / 4
+    lines = []
+    for a, b in ((tl, tr), (tr, br), (br, bl), (bl, tl)):
+        inward = middle - (a + b) / 2
+        lines.append(edge_line(img, a, b, inward / np.linalg.norm(inward)))
+    top, right, bottom, left = lines
+    return np.float32([meet(left, top), meet(top, right), meet(right, bottom), meet(bottom, left)])
+
+
 def warp(img, rect, width, height, inset=INSET):
     target = np.float32([[-inset, -inset], [width + inset, -inset], [width + inset, height + inset], [-inset, height + inset]])
-    matrix = cv2.getPerspectiveTransform(corners(rect), target)
+    matrix = cv2.getPerspectiveTransform(exact_corners(img, rect), target)
     return cv2.warpPerspective(img, matrix, (width, height), flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REPLICATE)
 
 
@@ -51,6 +94,12 @@ def build_back(interior):
     """White card with rounded corners around the scanned black panel."""
     border_x, border_y = 34, 34
     inner = cv2.resize(interior, (W - 2 * border_x, H - 2 * border_y), interpolation=cv2.INTER_LANCZOS4)
+    # the scanned page shows at the panel's rounded corners, so it takes the border's color there
+    size = 44
+    for rows in (slice(0, size), slice(-size, None)):
+        for cols in (slice(0, size), slice(-size, None)):
+            patch = inner[rows, cols]
+            patch[patch.min(axis=2) > 90] = 245
     card = np.full((H, W, 3), 245, np.uint8)
     card[border_y:H - border_y, border_x:W - border_x] = inner
     return card
