@@ -56,17 +56,19 @@ button:focus-visible { outline: 2px solid var(--silver-bright); outline-offset: 
 .deck-stack-card { border-radius: 9px; border: 1.5px solid rgba(215,230,255,.4); background: #090d14 url(art/back.jpg) center / cover; box-shadow: 0 10px 22px rgba(0,0,0,.7); }
 .deck-under-2 { top: 4px; right: 2px; filter: brightness(.6); box-shadow: 0 4px 10px rgba(0,0,0,.8); }
 .deck-under-1 { top: 2px; right: 1px; filter: brightness(.8); box-shadow: 0 6px 14px rgba(0,0,0,.8); }
-.pile-card-wrapper .card { border-radius: 9px; }
+.pile-card-wrapper .card { position: absolute; top: 0; right: 0; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 9px; }
 .deck-top { border: 1.5px solid rgba(220,235,255,.6); box-shadow: 0 10px 24px rgba(0,0,0,.75), 0 0 12px rgba(160,195,255,.2); }
 .pile-card-wrapper .discard-card { border: 1.5px solid rgba(255,220,160,.5); box-shadow: 0 10px 24px rgba(0,0,0,.75), 0 0 16px rgba(255,215,140,.25); }
 .pile-card-wrapper .discard-under { filter: brightness(.45); translate: -2px 3px; }
 .emptypile { border: 1px dashed rgba(148,163,184,.3); border-radius: 9px; }
 .pile-label { font-size: 12px; font-weight: 700; color: #cbd5e1; padding: 3px 10px; background: rgba(15,23,42,.85); border-radius: 999px; border: 1px solid rgba(148,163,184,.3); box-shadow: 0 2px 6px rgba(0,0,0,.5); }
 .pile-badge-glow { color: #93c5fd; border-color: rgba(147,196,253,.4); box-shadow: 0 0 10px rgba(96,165,250,.25); }
-.squires { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 8px; }
+/* the row floats under the piles, so it never moves them when it appears */
+.squires { position: absolute; inset: auto 0 0; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .squires small { font-size: 11px; color: #cbd5e1; }
 .squires div { display: flex; gap: 5px; }
-.squires .card { width: 44px; }
+.squires .card { width: 40px; }
+.rivals.many ~ .center-table .squires .card { width: 30px; }
 
 /* the card being decided on covers the table without moving it */
 .stage { position: absolute; inset: 0; z-index: 4; display: flex; gap: 12px; align-items: center; justify-content: center; padding: 8px; background: linear-gradient(180deg, rgba(17,24,39,.94), rgba(8,12,20,.96)); border: 1px solid rgba(120,145,180,.25); border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08); }
@@ -79,9 +81,9 @@ button:focus-visible { outline: 2px solid var(--silver-bright); outline-offset: 
 .spot { cursor: pointer; }
 .spot .card { pointer-events: none; }
 /* side abilities float on the table, so they never push anything */
-.chips { position: absolute; inset: auto 0 2px; z-index: 3; display: flex; justify-content: center; gap: 6px; overflow-x: auto; }
+.chips { position: absolute; inset: 0 0 auto; z-index: 3; display: flex; justify-content: center; gap: 6px; overflow-x: auto; }
 .chip { flex: none; padding: 4px 10px; font-size: 11.5px; font-weight: 600; color: #93c5fd; background: linear-gradient(180deg, #1c2432, #101622); border: 1px solid rgba(147,196,253,.5); border-radius: 10px; box-shadow: 0 0 10px rgba(96,165,250,.25); }
-.note { position: absolute; inset: auto 0 34px; z-index: 6; padding: 6px 10px; font-size: 12px; text-align: right; color: #f1f5f9; background: #141c2b; border: 1px solid rgba(248,113,113,.5); border-radius: 10px; }
+.note { position: absolute; inset: 34px 0 auto; z-index: 6; padding: 6px 10px; font-size: 12px; text-align: right; color: #f1f5f9; background: #141c2b; border: 1px solid rgba(248,113,113,.5); border-radius: 10px; }
 
 /* 4. instruction line */
 .turn-instruction { position: relative; z-index: 10; flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; margin: 2px 14px 6px; padding: 7px 12px; text-align: center; background: linear-gradient(90deg, transparent, rgba(30,48,76,.65) 20%, rgba(30,48,76,.65) 80%, transparent); border-block: 1px solid rgba(147,196,253,.25); font-size: 12px; font-weight: 600; color: #f1f5f9; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
