@@ -5,3 +5,5 @@ dist/
 # scans of the rulebooks and the old prototype stay on this computer
 rules/
 prototype/
+# Stitch designs stay on this computer
+design/

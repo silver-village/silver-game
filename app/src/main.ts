@@ -29,6 +29,16 @@ const nameOf = (rank: number) => AMULET_SET.find(d => d.rank === rank)?.name ?? 
 const label = (rank: number) => `${nameOf(rank)} (${fa(rank)})`;
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>';
 const AMULET = '<img src="art/amulet.jpg" alt="طلسم">';
+const icon = (path: string) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+const ICON = {
+  history: icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  score: icon('<path d="m12 3 2.7 5.6 6.2.9-4.5 4.3 1.1 6.1L12 17l-5.5 2.9 1.1-6.1L3.1 9.5l6.2-.9Z"/>'),
+  cards: icon('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 5v5"/>'),
+  exit: icon('<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h9"/>'),
+  burn: icon('<path d="M12 3c1 4 5 5.500 5 10.500a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 1-3-.5-6 1-9.5Z"/>'),
+  undo: icon('<path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/>'),
+};
+const buttonIcon = (b: Btn) => (b.kind === 'burn' ? ICON.burn : b.label.includes('پس گرفتن') || b.label.includes('برگرداندن') ? ICON.undo : '');
 
 type Side = { kind: 'empath' } | { kind: 'guard'; guard: CardId } | { kind: 'amulet' };
 interface Btn { label: string; kind?: 'primary' | 'burn' | 'ghost'; off?: boolean; fn: () => void }
@@ -535,21 +545,23 @@ function gameEl(): string {
     if (v.amulet.holder === ME && v.amulet.usable && !v.amulet.on) chips.push(`<button type="button" class="chip" data-act="${rb(() => { U.side = { kind: 'amulet' }; render(); })}">گذاشتن طلسم</button>`);
   }
   const mine = villageEl(v, ME, m);
-  const actions = (m.buttons ?? []).map(b => `<button type="button" class="act ${b.kind ?? ''}"${b.off ? ' disabled' : ` data-act="${rb(b.fn)}"`}>${b.label}</button>`).join('');
+  const actions = (m.buttons ?? []).map(b => `<button type="button" class="act ${b.kind ?? ''}"${b.off ? ' disabled' : ` data-act="${rb(b.fn)}"`}>${buttonIcon(b)}${b.label}</button>`).join('');
   const note = U.note ? `<button type="button" class="note" data-act="${rb(() => { U.note = ''; render(); })}">${U.note}</button>` : '';
   const skip = v.current !== ME && v.phase === 'turn' ? ` data-act="${rb(() => skipNow?.())}"` : '';
   return `<div class="game">
-    <div class="top"><span class="round">دور ${fa(v.round)} از ${fa(ROUNDS)}</span><div class="tools">
-      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'log'; render(); })}">تاریخچه</button>
-      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'score'; render(); })}">امتیاز</button>
-      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'help'; render(); })}">کارت‌ها</button>
-      <button type="button" class="tool" data-act="${rb(leave)}">خروج</button></div></div>
-    <div class="rivals">${rivals}</div>
+    <div class="top"><span class="round"><i></i>دور ${fa(v.round)} از ${fa(ROUNDS)}</span><div class="tools">
+      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'log'; render(); })}">${ICON.history}تاریخچه</button>
+      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'score'; render(); })}">${ICON.score}امتیاز</button>
+      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'help'; render(); })}">${ICON.cards}کارت‌ها</button>
+      <button type="button" class="tool" data-act="${rb(leave)}" aria-label="خروج">${ICON.exit}</button></div></div>
+    <div class="rivals n${v.players.length - 1}">${rivals}</div>
     <div class="table"${skip}>${piles}${row}${stage}${note}</div>
-    <div class="prompt${m.wait ? ' wait' : ''}">${m.prompt}</div>
+    <div class="prompt${m.wait ? ' wait' : ''}"><span>${m.prompt}</span></div>
     <div class="chips">${chips.join('')}</div>
-    <div class="village${m.can ? ' pick' : ''}${mine.count > 5 ? ' n6' : ''}">${mine.html}</div>
-    <div class="mine">دهکده‌ی تو${tag(v, ME)}${v.caller === ME ? ' · سرشماری کردی' : ''}</div>
+    <div class="villagebox">
+      <div class="mine"><span>دهکده‌ی تو (${fa(v.players[ME]?.village.length ?? 0)} کارت)${tag(v, ME)}${v.caller === ME ? ' · سرشماری کردی' : ''}</span>${U.sel.size ? `<em>${fa(U.sel.size)} کارت انتخاب شده</em>` : ''}</div>
+      <div class="village${m.can ? ' pick' : ''}${mine.count > 5 ? ' n6' : ''}">${mine.html}</div>
+    </div>
     <div class="actions">${actions}</div>
     ${sheetEl(v)}
   </div>`;
@@ -612,9 +624,12 @@ function startEl(): string {
 
 /* every card glides from where it was to where it is now, so one move rule animates everything */
 function render(): void {
-  const old = new Map<string, { r: DOMRect; f: string }>();
-  root.querySelectorAll<HTMLElement>('[data-cid]').forEach(el => old.set(el.dataset.cid as string, { r: el.getBoundingClientRect(), f: el.dataset.face as string }));
-  const oldDeck = root.querySelector('[data-deck]')?.getBoundingClientRect() ?? null;
+  /* w is the layout width: a card caught in mid-flip must not make the next move start tiny */
+  const old = new Map<string, { r: DOMRect; f: string; w: number }>();
+  root.querySelectorAll<HTMLElement>('[data-cid]').forEach(el => old.set(el.dataset.cid as string, { r: el.getBoundingClientRect(), f: el.dataset.face as string, w: el.offsetWidth }));
+  const deckEl = root.querySelector<HTMLElement>('[data-deck]');
+  const oldDeck = deckEl?.getBoundingClientRect() ?? null;
+  const oldDeckWidth = deckEl?.offsetWidth ?? 0;
   const top = root.querySelector('.panel')?.scrollTop ?? 0;
   reg = [];
   root.innerHTML = game ? gameEl() : startEl();
@@ -633,7 +648,7 @@ function render(): void {
     const moved = Math.abs(dx) > 1 || Math.abs(dy) > 1;
     const flip = !!o && o.f !== el.dataset.face;
     if (!moved && !flip) return;
-    const scale = n.width ? from.width / n.width : 1;
+    const scale = el.offsetWidth ? (o?.w ?? oldDeckWidth) / el.offsetWidth : 1;
     el.style.zIndex = '5';
     const anim = el.animate(
       [{ transform: `translate(${dx}px,${dy}px) scale(${scale})${flip ? ' rotateY(90deg)' : ''}` }, { transform: 'none' }],
