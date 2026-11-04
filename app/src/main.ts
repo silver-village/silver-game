@@ -29,14 +29,16 @@ const nameOf = (rank: number) => AMULET_SET.find(d => d.rank === rank)?.name ?? 
 const label = (rank: number) => `${nameOf(rank)} (${fa(rank)})`;
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>';
 const AMULET = '<img src="art/amulet.jpg" alt="طلسم">';
-const icon = (path: string) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+const svg = (size: number, inner: string, width = 2.5) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
 const ICON = {
-  history: icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
-  score: icon('<path d="m12 3 2.7 5.6 6.2.9-4.5 4.3 1.1 6.1L12 17l-5.5 2.9 1.1-6.1L3.1 9.5l6.2-.9Z"/>'),
-  cards: icon('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 5v5"/>'),
-  exit: icon('<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h9"/>'),
-  burn: icon('<path d="M12 3c1 4 5 5.500 5 10.500a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 1-3-.5-6 1-9.5Z"/>'),
-  undo: icon('<path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/>'),
+  history: svg(12, '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+  score: svg(12, '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
+  cards: svg(12, '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>'),
+  exit: svg(12, '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h9"/>'),
+  wolf: '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L9 8.5L4 7.5L5.5 13L2 17L7.5 17.5L12 22L16.5 17.5L22 17L18.5 13L20 7.5L15 8.5L12 2Z" fill="#cbd5e1"/></svg>',
+  sparkle: '<svg width="14" height="14" viewBox="0 0 24 24" fill="#60a5fa" aria-hidden="true"><path d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8L12 2Z"/></svg>',
+  burn: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z" fill="rgba(239,68,68,.2)"/></svg>',
+  undo: svg(15, '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>'),
 };
 const buttonIcon = (b: Btn) => (b.kind === 'burn' ? ICON.burn : b.label.includes('پس گرفتن') || b.label.includes('برگرداندن') ? ICON.undo : '');
 
@@ -455,7 +457,7 @@ const root = document.getElementById('root') as HTMLElement;
 let reg: (() => void)[] = [];
 const rb = (fn: () => void) => reg.push(fn) - 1;
 
-function cardEl(c: CardView, opts: { act?: number; go?: boolean; open?: boolean } = {}): string {
+function cardEl(c: CardView, opts: { act?: number; go?: boolean; extra?: string } = {}): string {
   const rank = U.peek.get(c.id) ?? U.reveal.get(c.id) ?? c.rank;
   const visible = rank !== null;
   const cls = ['card', visible ? 'face' : 'back'];
@@ -464,6 +466,7 @@ function cardEl(c: CardView, opts: { act?: number; go?: boolean; open?: boolean 
   if (U.pulse.has(c.id)) cls.push('pulse');
   if (U.peek.has(c.id)) cls.push('peek');
   if (opts.go) cls.push('go');
+  if (opts.extra) cls.push(opts.extra);
   const art = visible ? ` style="background-image:url(art/c${rank}.jpg)"` : '';
   const aria = visible ? `${nameOf(rank)}، عدد ${fa(rank)}` : 'کارت پشت‌ورو';
   const eye = U.eye.has(c.id) ? `<span class="eye">${EYE}</span>` : '';
@@ -475,6 +478,7 @@ function villageEl(v: GameView, owner: number, m: Controls): { html: string; cou
   const row = v.players[owner]?.village ?? [];
   const items: string[] = [];
   const gap = (fn: () => void) => `<div class="slot"><button type="button" class="gap" data-act="${rb(fn)}">اینجا</button></div>`;
+  const small = owner !== ME;
   row.forEach((c, i) => {
     if (owner === ME && m.spot && v.spots.includes(i)) {
       const spot = m.spot;
@@ -484,13 +488,14 @@ function villageEl(v: GameView, owner: number, m: Controls): { html: string; cou
     if (c.guarding) return;
     const able = !!m.can?.(c.id, owner);
     const tap = m.tap;
-    let html = cardEl(c, { act: able && tap ? rb(() => tap(c.id, owner)) : undefined });
+    let html = cardEl(c, { act: able && tap ? rb(() => tap(c.id, owner)) : undefined, extra: small ? 'mini-card' : '' });
+    if (owner === ME && U.sel.has(c.id)) html = `<div class="selected-marker">انتخاب شد</div>${html}`;
     if (v.amulet.on === c.id) html += `<span class="seal">${AMULET}</span>`;
     const g = row.find(x => x.guarding === c.id);
     let gAble = false;
     if (g) {
       gAble = !!m.can?.(g.id, owner);
-      html += `<span class="guard">${cardEl(g, { act: gAble && tap ? rb(() => tap(g.id, owner)) : undefined })}</span>`;
+      html += `<span class="guard">${cardEl(g, { act: gAble && tap ? rb(() => tap(g.id, owner)) : undefined, extra: 'mini-card' })}</span>`;
     }
     const dim = !!m.can && !able && !gAble;
     items.push(`<div class="slot${dim ? ' dim' : ''}">${html}</div>`);
@@ -502,27 +507,30 @@ function villageEl(v: GameView, owner: number, m: Controls): { html: string; cou
   }
   return { html: items.join(''), count: items.length };
 }
+const columns = (count: number) => Math.min(Math.max(5, count), 7);
 const tag = (v: GameView, i: number) => (v.amulet.holder === i && v.amulet.usable ? ` <span class="token">${AMULET}</span>` : '');
 function gameEl(): string {
   const v = view();
   const m = controls(v);
+  const rivalCount = v.players.length - 1;
   const rivals = v.players.map((p, i) => {
     if (i === ME) return '';
     const on = v.phase === 'turn' && v.current === i;
-    const sub = on && U.verb ? `<em>${U.verb}</em>` : v.caller === i ? 'سرشماری کرد' : fa(p.village.length) + ' کارت';
-    return `<div class="rival${on ? ' on' : ''}"><div class="who"><b>${p.name}${tag(v, i)}</b><small>${sub}</small></div><div class="mini${m.can ? ' pick' : ''}">${villageEl(v, i, m).html}</div></div>`;
+    const row = villageEl(v, i, m);
+    const sub = on && U.verb ? `<em>${U.verb}</em>` : v.caller === i ? 'سرشماری کرد' : `دهکده حریف (${fa(p.village.length)} کارت)`;
+    return `<section class="rival-panel${on ? ' on' : ''}"><div class="rival-header"><div class="rival-info"><div class="rival-avatar">${ICON.wolf}</div><span class="rival-name">${p.name}${tag(v, i)}</span></div><span class="rival-tag">${sub}</span></div><div class="cards-row-rival${m.can ? ' pick' : ''}" style="--n:${columns(row.count)}">${row.html}</div></section>`;
   }).join('');
-  const pile = v.discard.slice(-3);
+  const pile = v.discard.slice(-2);
   const deckBtn = v.deckCount
-    ? `<button type="button" class="card back${m.deck ? ' go' : ''}" data-deck="1"${m.deck ? ` data-act="${rb(m.deck)}"` : ' disabled'} aria-label="دسته"></button>`
+    ? `${v.deckCount > 2 ? '<div class="deck-stack-card deck-under-2"></div>' : ''}${v.deckCount > 1 ? '<div class="deck-stack-card deck-under-1"></div>' : ''}<button type="button" class="card back deck-top${m.deck ? ' go' : ''}" data-deck="1"${m.deck ? ` data-act="${rb(m.deck)}"` : ' disabled'} aria-label="دسته"></button>`
     : '<span class="emptypile"></span>';
   const discBtn = pile.length
     ? pile.map((c, i) => {
       const isTop = i === pile.length - 1;
-      return cardEl(c, { act: isTop && m.discard ? rb(m.discard) : undefined, go: isTop && !!m.discard });
+      return cardEl(c, { act: isTop && m.discard ? rb(m.discard) : undefined, go: isTop && !!m.discard, extra: isTop ? 'discard-card' : 'discard-under' });
     }).join('')
     : '<span class="emptypile"></span>';
-  const piles = `<div class="piles"><div class="pile"><div class="stack">${deckBtn}</div><small>دسته ${fa(v.deckCount)}</small></div><div class="pile"><div class="stack">${discBtn}</div><small>سوخته</small></div></div>`;
+  const piles = `<div class="piles-felt-ring"><div class="pile-container"><div class="pile-card-wrapper">${deckBtn}</div><div class="pile-label pile-badge-glow">دسته ${fa(v.deckCount)}</div></div><div class="pile-container"><div class="pile-card-wrapper">${discBtn}</div><div class="pile-label">سوخته</div></div></div>`;
   const rowFn = m.row;
   const row = v.row.length ? `<div class="squires"><div>${v.row.map(c => cardEl(c, { act: rowFn ? rb(() => rowFn(c.id)) : undefined, go: !!rowFn })).join('')}</div><small>کنار دسته</small></div>` : '';
   let stage = '';
@@ -545,29 +553,28 @@ function gameEl(): string {
     if (v.amulet.holder === ME && v.amulet.usable && !v.amulet.on) chips.push(`<button type="button" class="chip" data-act="${rb(() => { U.side = { kind: 'amulet' }; render(); })}">گذاشتن طلسم</button>`);
   }
   const mine = villageEl(v, ME, m);
-  const actions = (m.buttons ?? []).map(b => `<button type="button" class="act ${b.kind ?? ''}"${b.off ? ' disabled' : ` data-act="${rb(b.fn)}"`}>${buttonIcon(b)}${b.label}</button>`).join('');
+  const selected = (v.players[ME]?.village ?? []).flatMap((c, i) => (U.sel.has(c.id) ? [i + 1] : []));
+  const hint = selected.length === 1 ? `کارت ${fa(selected[0] as number)} انتخاب شده است` : selected.length ? `${fa(selected.length)} کارت انتخاب شده است` : '';
+  const actions = (m.buttons ?? []).map(b => `<button type="button" class="game-btn ${b.kind ?? ''}"${b.off ? ' disabled' : ` data-act="${rb(b.fn)}"`}>${buttonIcon(b)}<span>${b.label}</span></button>`).join('');
   const note = U.note ? `<button type="button" class="note" data-act="${rb(() => { U.note = ''; render(); })}">${U.note}</button>` : '';
   const skip = v.current !== ME && v.phase === 'turn' ? ` data-act="${rb(() => skipNow?.())}"` : '';
   return `<div class="game">
-    <div class="top"><span class="round"><i></i>دور ${fa(v.round)} از ${fa(ROUNDS)}</span><div class="tools">
-      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'log'; render(); })}">${ICON.history}تاریخچه</button>
-      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'score'; render(); })}">${ICON.score}امتیاز</button>
-      <button type="button" class="tool" data-act="${rb(() => { U.sheet = 'help'; render(); })}">${ICON.cards}کارت‌ها</button>
-      <button type="button" class="tool" data-act="${rb(leave)}" aria-label="خروج">${ICON.exit}</button></div></div>
-    <div class="rivals n${v.players.length - 1}">${rivals}</div>
-    <div class="table"${skip}>${piles}${row}${stage}${note}</div>
-    <div class="prompt${m.wait ? ' wait' : ''}"><span>${m.prompt}</span></div>
-    <div class="chips">${chips.join('')}</div>
-    <div class="villagebox">
-      <div class="mine"><span>دهکده‌ی تو (${fa(v.players[ME]?.village.length ?? 0)} کارت)${tag(v, ME)}${v.caller === ME ? ' · سرشماری کردی' : ''}</span>${U.sel.size ? `<em>${fa(U.sel.size)} کارت انتخاب شده</em>` : ''}</div>
-      <div class="village${m.can ? ' pick' : ''}${mine.count > 5 ? ' n6' : ''}">${mine.html}</div>
-    </div>
-    <div class="actions">${actions}</div>
+    <header class="top-bar"><div class="round-badge"><span class="round-dot"></span><span>دور ${fa(v.round)} از ${fa(ROUNDS)}</span></div><div class="top-nav-buttons">
+      <button type="button" class="top-btn" data-act="${rb(() => { U.sheet = 'log'; render(); })}">${ICON.history}<span>تاریخچه</span></button>
+      <button type="button" class="top-btn" data-act="${rb(() => { U.sheet = 'score'; render(); })}">${ICON.score}<span>امتیاز</span></button>
+      <button type="button" class="top-btn" data-act="${rb(() => { U.sheet = 'help'; render(); })}">${ICON.cards}<span>کارت‌ها</span></button>
+      <button type="button" class="top-btn" data-act="${rb(leave)}" aria-label="خروج">${ICON.exit}</button></div></header>
+    <div class="rivals${rivalCount > 1 ? ' many' : ''}">${rivals}</div>
+    <main class="center-table"${skip}>${piles}${row}<div class="chips">${chips.join('')}</div>${stage}${note}</main>
+    <div class="turn-instruction"><span class="instruction-sparkle">${ICON.sparkle}</span><span>${m.prompt}</span></div>
+    <section class="village-section"><div class="village-title-bar"><span class="village-title">دهکده شما (${fa(v.players[ME]?.village.length ?? 0)} کارت)${tag(v, ME)}${v.caller === ME ? ' · سرشماری کردی' : ''}</span><span class="village-hint">${hint}</span></div>
+      <div class="cards-row-player${m.can ? ' pick' : ''}" style="--n:${columns(mine.count)}">${mine.html}</div></section>
+    <footer class="action-controls">${actions}</footer>
     ${sheetEl(v)}
   </div>`;
 }
 function panel(title: string, body: string, closable = true): string {
-  const close = closable ? `<button type="button" class="act" data-act="${rb(() => { U.sheet = null; render(); })}">بستن</button>` : '';
+  const close = closable ? `<button type="button" class="game-btn" data-act="${rb(() => { U.sheet = null; render(); })}">بستن</button>` : '';
   return `<div class="sheet"><div class="panel"><h2>${title}</h2>${body}${close}</div></div>`;
 }
 function scoreTable(v: GameView): string {
@@ -590,17 +597,17 @@ function resultText(v: GameView): string {
 function sheetEl(v: GameView): string {
   if (v.phase === 'gameEnd') {
     const title = v.winner === ME ? 'تو بردی' : `${v.players[v.winner ?? 0]?.name} برد`;
-    return panel(title, `${scoreTable(v)}<button type="button" class="act primary" data-act="${rb(leave)}">بازی جدید</button>`, false);
+    return panel(title, `${scoreTable(v)}<button type="button" class="game-btn primary" data-act="${rb(leave)}">بازی جدید</button>`, false);
   }
   if (v.phase === 'roundEnd') {
     const r = v.result;
-    const rows = v.players.map((p, i) => `<div class="res"><header><span>${p.name}: ${fa(r?.scores[i] ?? 0)} امتیاز</span><span>مجموع کارت‌ها ${fa(r?.sums[i] ?? 0)}</span></header><div class="mini">${p.village.map(c => `<div class="slot">${cardEl(c)}</div>`).join('')}</div></div>`).join('');
+    const rows = v.players.map((p, i) => `<div class="res"><header><span>${p.name}: ${fa(r?.scores[i] ?? 0)} امتیاز</span><span>مجموع کارت‌ها ${fa(r?.sums[i] ?? 0)}</span></header><div class="cards-row-rival" style="--n:${columns(p.village.length)}">${p.village.map(c => `<div class="slot">${cardEl(c, { extra: 'mini-card' })}</div>`).join('')}</div></div>`).join('');
     const next = () => { dispatch(ME, { type: 'nextRound' }); if (game?.phase === 'peek') rivalsPeek(); settle(); };
-    return panel(`پایان دور ${fa(v.round)}`, `<p>${resultText(v)}</p>${rows}${scoreTable(v)}<button type="button" class="act primary" data-act="${rb(next)}">${v.round >= ROUNDS ? 'دیدن برنده' : 'دور بعد'}</button>`, false);
+    return panel(`پایان دور ${fa(v.round)}`, `<p>${resultText(v)}</p>${rows}${scoreTable(v)}<button type="button" class="game-btn primary" data-act="${rb(next)}">${v.round >= ROUNDS ? 'دیدن برنده' : 'دور بعد'}</button>`, false);
   }
   if (v.step === 'ability' && v.pending === RANK.master && v.current === ME && !U.side) {
     const pile = v.discard.filter(c => v.candidates.includes(c.id));
-    const back = `<button type="button" class="act ghost" data-act="${rb(() => act({ type: 'skipAbility' }))}">هیچ کارتی برنمی‌دارم</button>${v.canUndo ? `<button type="button" class="act ghost" data-act="${rb(() => act({ type: 'undo' }))}">پس گرفتن حرکت</button>` : ''}`;
+    const back = `<button type="button" class="game-btn ghost" data-act="${rb(() => act({ type: 'skipAbility' }))}">هیچ کارتی برنمی‌دارم</button>${v.canUndo ? `<button type="button" class="game-btn ghost" data-act="${rb(() => act({ type: 'undo' }))}">پس گرفتن حرکت</button>` : ''}`;
     return panel('ستون سوخته', `<div class="grid pick">${pile.map(c => cardEl(c, { act: rb(() => act({ type: 'target', cards: [c.id] })) })).join('')}</div>${back}`, false);
   }
   if (U.sheet === 'score') return panel('امتیازها', v.players.some(p => p.scores.length) ? scoreTable(v) : '<p>هنوز هیچ دوری تمام نشده است. امتیاز کمتر بهتر است.</p>');
@@ -612,13 +619,13 @@ function startEl(): string {
   const fan = [13, 10, 0, 12, 9].map(r => `<span style="background-image:url(art/c${r}.jpg)"></span>`).join('');
   const seg = [1, 2, 3].map(n => `<button type="button" class="${rivalsWanted === n ? 'on' : ''}" data-act="${rb(() => { rivalsWanted = n; render(); })}">${fa(n)} رقیب</button>`).join('');
   const data = saved();
-  const cont = data ? `<button type="button" class="act primary" data-act="${rb(() => resume(data))}">ادامه‌ی بازی قبلی</button>` : '';
-  const install = installEvent ? `<button type="button" class="act" data-act="${rb(() => { installEvent?.prompt(); installEvent = null; render(); })}">نصب روی گوشی</button>` : '';
+  const cont = data ? `<button type="button" class="game-btn primary" data-act="${rb(() => resume(data))}">ادامه‌ی بازی قبلی</button>` : '';
+  const install = installEvent ? `<button type="button" class="game-btn" data-act="${rb(() => { installEvent?.prompt(); installEvent = null; render(); })}">نصب روی گوشی</button>` : '';
   return `<div class="start"><div class="hero" aria-hidden="true"><div class="fan">${fan}</div></div><h1>سیلور</h1>
     <p>نسخه‌ی طلسم. بازی با رقیب‌های کامپیوتری، بدون نیاز به اینترنت.</p>
     ${cont}
     <div class="lab">تعداد رقیب</div><div class="seg">${seg}</div>
-    <button type="button" class="act${data ? '' : ' primary'}" data-act="${rb(() => startGame(rivalsWanted))}">بازی جدید</button>
+    <button type="button" class="game-btn${data ? '' : ' primary'}" data-act="${rb(() => startGame(rivalsWanted))}">بازی جدید</button>
     ${install}</div>`;
 }
 
