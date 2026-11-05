@@ -1,7 +1,7 @@
 /* Works offline. The page itself is fetched fresh when online, so updates arrive on the next open. */
 const CACHE = 'silver-__BUILD__';
 const ranks = Array.from({ length: 14 }, (_, r) => `art/c${r}.jpg`);
-const PRECACHE = ['./', 'style.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'art/back.jpg', 'art/back-sm.jpg', 'art/amulet.jpg', ...ranks, /* filled in by the build */ __ASSETS__];
+const PRECACHE = ['./', 'style.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'art/back.jpg', 'art/back-sm.jpg', 'art/amulet.jpg', 'art/stars.svg', 'art/sky-start.webp', 'art/sky-table.webp', ...ranks, /* filled in by the build */ __ASSETS__];
 
 self.addEventListener('install', event => {
   /* 'reload' skips the browser's own cache, so replaced images really arrive */

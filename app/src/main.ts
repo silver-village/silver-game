@@ -45,7 +45,8 @@ const ICON = {
   more: draw('<rect x="3" y="6" width="11" height="15" rx="1.500"/><path d="M18.500 4v7M15 7.500h7"/>'),
   star: draw('<path d="M12 2.800l2.900 5.900 6.500.9-4.700 4.600 1.100 6.500L12 17.700l-5.800 3 1.100-6.500-4.700-4.600 6.500-.9L12 2.800Z" fill="currentColor"/>'),
   resume: draw('<path d="M20 12a8 8 0 1 1-2.500-5.800"/><path d="M20.500 3v4.500H16"/><path d="m10 8.500 5.500 3.500-5.500 3.500v-7Z" fill="currentColor"/>'),
-  gear: draw('<circle cx="12" cy="12" r="3.200"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/>'),
+  gear: draw('<path d="M12.200 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.700l-.4.300a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.700.700l-.2.400a2 2 0 0 0 .700 2.700l.2.100a2 2 0 0 1 1 1.700v.5a2 2 0 0 1-1 1.700l-.2.100a2 2 0 0 0-.700 2.700l.2.400a2 2 0 0 0 2.700.700l.2-.1a2 2 0 0 1 2 0l.4.300a2 2 0 0 1 1 1.700V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.700l.4-.3a2 2 0 0 1 2 0l.2.100a2 2 0 0 0 2.700-.700l.2-.4a2 2 0 0 0-.700-2.700l-.2-.1a2 2 0 0 1-1-1.700v-.5a2 2 0 0 1 1-1.700l.2-.1a2 2 0 0 0 .700-2.700l-.2-.4a2 2 0 0 0-2.700-.700l-.2.100a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.700V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/>'),
+  play: draw('<path d="M8 5.500v13l10.500-6.500L8 5.500Z" fill="currentColor"/>'),
   cards: draw('<rect x="8" y="3" width="12" height="16" rx="1.500"/><path d="M5 6.500v12A2.500 2.500 0 0 0 7.500 21H15"/>'),
   install: draw('<path d="M12 3v12M7 10.500l5 5 5-5"/><path d="M4 20.500h16"/>'),
   close: draw('<path d="M6 6l12 12M18 6 6 18"/>'),
@@ -864,7 +865,7 @@ function sheetEl(v: GameView): string {
 function startEl(): string {
   const fan = [13, 10, 0, 12, 9].map(r => `<span style="background-image:url(art/c${r}.jpg)"></span>`).join('');
   const data = saved();
-  const big = (icon: string, text: string, fn?: () => void, note = '') => `<button type="button" class="round-btn big"${fn ? ` data-act="${rb(fn)}"` : ' disabled'}>${round(icon)}<small>${text}</small>${note ? `<span class="note-under">${note}</span>` : ''}</button>`;
+  const big = (icon: string, text: string, fn: () => void, note: string, gold: boolean) => `<button type="button" class="round-btn big${gold ? ' gold' : ''}" data-act="${rb(fn)}">${round(icon)}<small>${text}</small>${note ? `<span class="note-under">${note}</span>` : ''}</button>`;
   /* a half-played game is never thrown away without asking */
   const fresh = () => { if (data) { U.sheet = 'newGame'; render(); } else startGame(prefs.rivals); };
   const small = (icon: string, text: string, fn: () => void) => `<button type="button" class="round-btn" data-act="${rb(fn)}">${round(icon)}<small>${text}</small></button>`;
@@ -889,7 +890,7 @@ function startEl(): string {
   return `<div class="start">
     <div class="logo"><h1>سیلور</h1><p>طلسم</p></div>
     <div class="hero" aria-hidden="true"><div class="fan">${fan}</div></div>
-    <div class="main-actions">${big(ICON.star, 'بازی جدید', fresh, `${fa(prefs.rivals)} رقیب`)}${big(ICON.resume, 'ادامه', data ? () => resume(data) : undefined, data ? where(data.game) : 'بازی ذخیره‌شده نیست')}</div>
+    <div class="main-actions${data ? '' : ' one'}">${data ? big(ICON.resume, 'ادامه', () => resume(data), where(data.game), true) : ''}${big(ICON.play, 'بازی جدید', fresh, `${fa(prefs.rivals)} رقیب`, !data)}</div>
     <nav class="home-tools">${small(ICON.gear, 'تنظیمات', open('settings'))}${small(ICON.cards, 'کارت‌ها', open('help'))}${install}</nav>
     ${sheet}${zoomEl()}</div>`;
 }
@@ -1018,7 +1019,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 }
 render();
 /* the pictures load once at the start, so no card or guide picture is black the first time it shows */
-const pictures = [...Array.from({ length: 14 }, (_, r) => `art/c${r}.jpg`), 'art/back.jpg', 'art/back-sm.jpg', 'art/amulet.jpg'].map(src => {
+const pictures = [...Array.from({ length: 14 }, (_, r) => `art/c${r}.jpg`), 'art/back.jpg', 'art/back-sm.jpg', 'art/amulet.jpg', 'art/sky-start.webp', 'art/sky-table.webp'].map(src => {
   const img = new Image();
   img.src = src;
   return img;

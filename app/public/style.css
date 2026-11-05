@@ -1,13 +1,18 @@
-/* Starry night look: cards fill the width, round glowing tools, and one line saying what is happening. */
+/* Silver night: a starry sky over a sleeping village. Silver is for the frame of things,
+   lantern gold only for what to do next and what is chosen. */
 :root {
   color-scheme: dark;
   --app: min(100vw, 480px);
   --ink: #fff;
-  --ink-soft: rgba(255,255,255,.78);
-  --halo: 176,92,214;
-  --line: rgba(255,255,255,.28);
+  --ink-soft: rgba(236,240,250,.8);
+  --silver: 230,236,247;
+  --gold: 255,198,92;
+  --gold-ink: #2b1b04;
+  --glass: rgba(14,18,48,.5);
+  --line: rgba(var(--silver),.26);
   --radius: 5% / 3.6%; /* a little rounder than the print, so no scanned page shows at the corners */
-  --speckle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .78 0 0 0 0 .9 0 0 0 0 1 0 0 0 6 -3.55'/%3E%3C/filter%3E%3Crect width='360' height='360' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E");
+  /* the painted night (its rooftops at the bottom) over the same colours, which show while it loads */
+  --sky: linear-gradient(180deg, #1a2a5c 0%, #232a68 45%, #3a3080 85%, #4a3a8c 100%);
   font-family: "Vazirmatn Variable", -apple-system, BlinkMacSystemFont, Tahoma, sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -15,33 +20,28 @@ html, body { height: 100%; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (min-width: 520px) { #root { box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 20px 80px rgba(0,0,0,.6); } }
 /* on a wide screen the game sits in a framed column on a dim copy of its own sky */
-body { background: radial-gradient(80% 60% at 50% 30%, #2a3570, #0b0f26 75%) fixed; color: var(--ink); font-size: 14px; line-height: 1.5; overscroll-behavior: none; }
+body { background: url(art/stars.svg) 0 0 / 400px repeat, radial-gradient(80% 60% at 50% 30%, #26306a, #0b0f26 75%) fixed; color: var(--ink); font-size: 14px; line-height: 1.5; overscroll-behavior: none; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
-:root.kbd button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+:root.kbd button:focus-visible { outline: 2px solid rgb(var(--gold)); outline-offset: 2px; }
 /* a round button gets a round ring, around its circle */
 :root.kbd .round-btn:focus-visible, :root.kbd .tool:focus-visible { outline: none; }
-:root.kbd .round-btn:focus-visible .ring, :root.kbd .tool:focus-visible .ring { outline: 2px solid #fff; outline-offset: 3px; }
+:root.kbd .round-btn:focus-visible .ring, :root.kbd .tool:focus-visible .ring { outline: 2px solid rgb(var(--gold)); outline-offset: 3px; }
 #root { position: relative; height: 100%; max-width: 480px; margin: 0 auto; overflow: hidden; isolation: isolate;
-  background:
-    radial-gradient(1.5px 1.5px at 18% 62%, #fff, transparent), radial-gradient(1.5px 1.5px at 74% 44%, #fff, transparent),
-    radial-gradient(1.5px 1.5px at 42% 53%, #fff, transparent), radial-gradient(1.5px 1.5px at 88% 58%, #fff, transparent),
-    radial-gradient(2px 2px at 30% 40%, rgba(255,255,255,.9), transparent), radial-gradient(1.5px 1.5px at 62% 66%, #fff, transparent),
-    var(--speckle),
-    radial-gradient(120% 60% at 0 0, rgba(35,132,150,.7), transparent 70%),
-    linear-gradient(172deg, #1d3f63 0%, #27346e 34%, #352f70 62%, #4a2c62 88%, #5a2a57 100%); }
+  background: linear-gradient(transparent 82%, rgba(6,8,26,.55)), url(art/sky-table.webp) 50% 100% / cover no-repeat, var(--sky); }
 .game, .start { position: relative; z-index: 1; height: 100%; }
 .game { display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
 
-/* round glowing buttons */
-.ring { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; border: 2px solid #fff; border-radius: 50%; color: #fff;
-  background: radial-gradient(circle, rgba(var(--halo),.6), rgba(var(--halo),.28) 70%);
-  box-shadow: 0 0 18px 6px rgba(var(--halo),.42); transition: scale .14s, box-shadow .2s; }
+/* round buttons: quiet silver-rimmed glass; only the main move of the moment is lit in gold */
+.ring { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; border: 1.5px solid rgba(var(--silver),.85); border-radius: 50%; color: #fff;
+  background: var(--glass); box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 3px 10px rgba(0,0,0,.35); transition: scale .14s, box-shadow .2s; }
+.gold .ring, .tool.ok .ring { color: var(--gold-ink); border-color: #fff1cf; background: radial-gradient(circle at 50% 35%, #ffe1a0, #f0ad42 75%); box-shadow: 0 0 18px 2px rgba(var(--gold),.5), inset 0 1px 0 rgba(255,255,255,.5); }
 .ring svg { width: 58%; height: 58%; }
 .round-btn { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 44px; }
 .round-btn small { font-size: 13px; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .round-btn:active .ring, .tool:active .ring { scale: .92; }
 .round-btn[disabled] { cursor: default; opacity: .55; }
 .round-btn[disabled] .ring { box-shadow: none; background: none; }
+.round-btn.gold small, .tool.ok small { color: #ffe3a6; }
 
 /* 1. top bar */
 .top-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 14px 6px; }
@@ -57,26 +57,25 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* the score sits apart from the name behind a thin line, so «رقیب ۲» and 8 never read as «رقیب ۲۸» */
 .order li b { margin-inline-start: 5px; padding-inline-start: 5px; border-inline-start: 1px solid currentColor; font-weight: 800; }
 i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-end: 4px; vertical-align: 1px; border-radius: 50%; background: var(--c); }
-.order li.now { color: #1d1236; font-weight: 800; background: #fff; border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,.6); }
+.order li.now { color: var(--gold-ink); font-weight: 800; background: rgb(var(--gold)); border-color: rgb(var(--gold)); box-shadow: 0 0 12px rgba(var(--gold),.5); }
 
 /* 2. rivals */
 .rivals { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 0 6px; }
 .rival-panel { position: relative; display: flex; align-items: center; gap: 6px; }
 .rivals:not(.many) .rival-panel { padding: 3px 5px; border-radius: 10px; border: 1px solid transparent; }
 .rivals:not(.many) .cards-row-rival { flex: 1; min-width: 0; }
-.rivals:not(.many) .rival-panel.on { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); }
+.rivals:not(.many) .rival-panel.on { border-color: rgba(var(--gold),.6); background: rgba(var(--gold),.07); }
 .rival-avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; font-size: 13px; font-weight: 800; color: #1d1236; background: var(--c, #5f6876); border: 1.5px solid #fff; border-radius: 50%; }
-.rival-panel.on .rival-avatar { box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 12px var(--c); }
+.rival-panel.on .rival-avatar { box-shadow: 0 0 0 3px rgba(var(--gold),.7), 0 0 12px rgba(var(--gold),.5); }
 .cards-row-rival, .cards-row-player { display: flex; justify-content: center; gap: 4px; }
 .slot { position: relative; flex: 0 0 calc((100% - (var(--n, 5) - 1) * 4px) / var(--n, 5)); min-width: 0; }
-.rival-panel.on .card { box-shadow: 0 3px 10px rgba(0,0,0,.45), 0 0 10px rgba(255,255,255,.3); }
 .rivals.many .rival-panel { display: flex; align-items: center; gap: 6px; padding: 3px 5px; border-radius: 10px; border: 1px solid transparent; }
-.rivals.many .rival-panel.on { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); }
+.rivals.many .rival-panel.on { border-color: rgba(var(--gold),.6); background: rgba(var(--gold),.07); }
 .rivals.many .cards-row-rival { flex: 1; min-width: 0; gap: 3px; }
 .rivals.many .slot { flex: 0 0 min(calc((100% - 18px) / var(--n, 5)), 6.6vh); }
-.called { position: absolute; bottom: -9px; inset-inline-start: 8px; z-index: 6; padding: 0 8px; font-size: 11px; font-weight: 800; color: #1d1236; background: #ffd9f4; border-radius: 999px; }
-.amulet-token { position: absolute; bottom: -52px; inset-inline-end: 6px; z-index: 6; width: 46px; height: 46px; pointer-events: none; filter: drop-shadow(0 0 7px rgba(255,255,255,.65)); }
-.amulet-token img { display: block; width: 100%; height: 100%; border-radius: 50%; mix-blend-mode: screen; }
+.called { position: absolute; bottom: -9px; inset-inline-start: 8px; z-index: 6; padding: 0 8px; font-size: 11px; font-weight: 800; color: #10142e; background: rgb(var(--silver)); border-radius: 999px; }
+.amulet-token { position: absolute; bottom: -52px; inset-inline-end: 6px; z-index: 6; width: 46px; height: 46px; pointer-events: none; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(var(--gold),.95), 0 0 14px rgba(var(--gold),.45); }
+.amulet-token img { display: block; width: 100%; height: 100%; border-radius: 50%; }
 .rivals.many .amulet-token { inset: 50% auto auto 2px; translate: 0 -50%; width: 28px; height: 28px; }
 
 /* 3. center: squires (on their side), deck, discard */
@@ -89,7 +88,7 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .deck-under-2 { translate: 3px 4px; filter: brightness(.5); }
 .deck-under-1 { translate: 1.5px 2px; filter: brightness(.72); }
 .pile .discard-under { translate: -2px 3px; filter: brightness(.45); }
-.deck-count { inset: auto auto -9px 50%; width: auto; height: auto; translate: -50% 0; z-index: 3; padding: 0 8px; font-size: 12px; font-weight: 800; line-height: 18px; background: rgba(13,17,48,.92); border: 1px solid var(--line); border-radius: 999px; pointer-events: none; }
+.deck-count { inset: auto auto -9px 50%; width: auto; height: auto; translate: -50% 0; z-index: 3; padding: 0 8px; font-size: 12px; font-weight: 800; line-height: 18px; background: #10142e; border: 1px solid var(--line); border-radius: 999px; pointer-events: none; }
 .emptypile { border: 1.5px dashed var(--line); border-radius: var(--radius); }
 .squires { --w: calc(var(--app) * .145); position: absolute; top: 50%; inset-inline-end: calc(100% + 6px); translate: 0 -50%; display: flex; flex-direction: column; }
 .sq { position: relative; width: calc(var(--w) * 1.4); height: var(--w); }
@@ -102,20 +101,20 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .piles:has(~ .stage:not(.spot)) { opacity: .22; }
 .hand { display: flex; gap: 8px; flex: none; }
 .stage { --fit: calc((100cqh - 16px) * 5 / 7); } /* a card in the middle never grows taller than the middle */
-.hand .card { width: min(38vw, 158px, 21vh, var(--fit)); box-shadow: 0 12px 30px rgba(0,0,0,.65), 0 0 26px rgba(214,188,255,.55); }
+.hand .card { width: min(38vw, 158px, 21vh, var(--fit)); box-shadow: 0 12px 30px rgba(0,0,0,.65), 0 0 26px rgba(var(--silver),.35); }
 .hand.many .card { width: min(28vw, 118px, 18vh, var(--fit)); }
 .watch .hand .card { width: min(26vw, 108px, 16vh, var(--fit)); }
 .note { position: absolute; inset: 6px 12px auto; z-index: 6; padding: 6px 12px; font-size: 13px; color: #fff; background: rgba(120,28,50,.95); border: 1px solid rgba(255,255,255,.4); border-radius: 10px; }
 
 /* 4. the player's village: a band across the screen */
-.village-section { position: relative; flex: none; padding: 8px 8px; background: rgba(255,255,255,.14); border-block: 1px solid var(--line); }
-.village-section.on { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.7); box-shadow: 0 0 18px rgba(var(--halo),.45); }
+.village-section { position: relative; flex: none; padding: 8px 8px; background: rgba(12,16,44,.34); border-block: 1px solid var(--line); }
+.village-section.on { border-color: rgba(var(--gold),.7); box-shadow: 0 0 16px rgba(var(--gold),.22); }
 .village-section .amulet-token { bottom: auto; top: -52px; }
 .village-section .called { bottom: auto; top: -10px; }
 .cards-row-player { gap: 3px; }
 .cards-row-player .slot { flex-basis: calc((100% - (var(--n, 5) - 1) * 3px) / var(--n, 5)); max-width: 13vh; }
 .rivals:not(.many) .slot { max-width: 11vh; }
-.gap { display: block; width: 100%; aspect-ratio: 5 / 7; border: 2px dashed #fff; border-radius: var(--radius); font-size: 12px; font-weight: 800; background: rgba(var(--halo),.35); animation: breathe 1.4s ease-in-out infinite; }
+.gap { display: block; width: 100%; aspect-ratio: 5 / 7; border: 2px dashed rgb(var(--gold)); border-radius: var(--radius); font-size: 12px; font-weight: 800; color: #ffe3a6; background: rgba(var(--gold),.16); animation: breathe 1.4s ease-in-out infinite; }
 
 /* cards */
 .card { display: block; width: 100%; aspect-ratio: 5 / 7; position: relative; overflow: hidden; border-radius: var(--radius); background: #090d14 center / cover no-repeat; box-shadow: 0 3px 10px rgba(0,0,0,.45); transition: translate .22s cubic-bezier(.2,.8,.2,1), scale .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s, opacity .16s; }
@@ -127,17 +126,21 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .card .nm { display: none; }
 .card .pip { display: none; position: absolute; inset: auto 0 0; font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.72); line-height: 1.4; }
 .rivals.many .pip, .guard .pip { display: block; }
-.pick .card:not([disabled]):not(.idle), .card.go { box-shadow: 0 0 0 2px #fff, 0 0 16px 3px rgba(214,170,255,.9); animation: breathe 1.6s ease-in-out infinite; }
-.dim { opacity: .34; }
-.card.sel, .pick .card.sel:not([disabled]):not(.idle) { translate: 0 -14px; z-index: 5; animation: none; box-shadow: 0 0 0 3px #fff, 0 10px 22px rgba(0,0,0,.6), 0 0 22px 6px rgba(143,240,190,.85); }
-.card.peek { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px rgba(214,170,255,.9); }
+/* can be tapped: a thin silver rim. The next move (deck, burned pile, card in hand): a soft gold one */
+.pick .card:not([disabled]):not(.idle) { box-shadow: 0 0 0 1.5px rgba(var(--silver),.9), 0 4px 12px rgba(0,0,0,.5); }
+.card.go { box-shadow: 0 0 0 2px rgb(var(--gold)), 0 0 16px 2px rgba(var(--gold),.55); animation: breathe 1.8s ease-in-out infinite; }
+.dim { opacity: .4; }
+/* chosen: a thick gold rim, lifted, with a check in the corner */
+.card.sel, .pick .card.sel:not([disabled]):not(.idle) { translate: 0 -12px; z-index: 5; animation: none; box-shadow: 0 0 0 3px rgb(var(--gold)), 0 10px 22px rgba(0,0,0,.6), 0 0 18px 4px rgba(var(--gold),.6); }
+.card.sel::after { content: ""; position: absolute; top: 4px; inset-inline-start: 4px; width: 18px; height: 18px; border-radius: 50%; background: rgb(var(--gold)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232b1b04' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 72% no-repeat; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.card.peek { box-shadow: 0 0 0 2px rgb(var(--silver)), 0 0 22px 6px rgba(var(--silver),.45); }
 .card.marked { box-shadow: 0 0 0 3px #ff6b6b, 0 0 16px 4px rgba(255,107,107,.8); }
 .card.pulse { animation: pulse 1s ease 3; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 3px #ff6b6b, 0 0 20px 6px rgba(255,107,107,.9); } }
 @keyframes breathe { 50% { filter: brightness(1.14); } }
 .guard { position: absolute; left: -3px; bottom: -5px; width: 54%; z-index: 2; }
-.seal { position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; z-index: 3; pointer-events: none; }
-.seal img { display: block; width: 100%; height: 100%; border-radius: 50%; mix-blend-mode: screen; }
+.seal { position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; z-index: 3; pointer-events: none; border-radius: 50%; box-shadow: 0 0 0 1.5px rgb(var(--gold)), 0 0 8px rgba(var(--gold),.6); }
+.seal img { display: block; width: 100%; height: 100%; border-radius: 50%; }
 .eye { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); color: #fff; animation: look 1.1s ease infinite; }
 .eye svg { width: 62%; }
 @keyframes look { 50% { opacity: .35; } }
@@ -145,47 +148,48 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .arrow line { stroke-dasharray: 1; animation: draw .45s ease both; }
 @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 
-/* 5. tools: every slot stays put, resting ones fade back */
+/* 5. tools: a used side tool rests in its place for the rest of the turn, so the others never slide */
 .tools { flex: none; display: flex; justify-content: center; align-items: flex-start; gap: 4px; min-height: 76px; padding: 8px 10px 6px; }
 .tool { flex: 0 1 74px; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
 .tools-sep { flex: none; align-self: stretch; width: 1px; margin: 2px 6px 12px; background: var(--line); }
 .tool .ring { width: min(100%, 46px); }
 .tool small { max-width: 100%; font-size: 12px; font-weight: 700; line-height: 1.25; text-align: center; }
 .tool.off { cursor: default; }
-.tool.off .ring { color: rgba(255,255,255,.45); border-color: rgba(255,255,255,.35); background: none; box-shadow: none; }
+.tool.off .ring { color: rgba(255,255,255,.4); border-color: rgba(var(--silver),.3); background: none; box-shadow: none; }
 .tool.off small { opacity: .6; }
 .tool.off img { opacity: .18; }
 .tool.art .ring { overflow: hidden; }
 .tool.art img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: screen; }
-.tool.ok .ring { --halo: 40,190,90; background: radial-gradient(circle, rgba(32,160,76,.95), rgba(20,120,60,.7)); }
-.tool.burn .ring { --halo: 240,92,60; background: radial-gradient(circle, rgba(226,78,50,.95), rgba(160,44,34,.72)); }
+/* burning is an everyday move: an ember icon, not an alarm */
+.tool.burn:not(.off) .ring { color: #ff9f6e; }
 
 /* 6. what is happening */
 /* the message sits right above the player's cards, where the eyes already are */
 .message { flex: none; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; min-height: 78px; padding: 4px 14px 6px; text-align: center; }
 /* the player's amulet sits at the far end just above the village, so the message keeps clear of it */
 .has-amulet .message { padding-inline-end: 60px; }
-.message b { font-size: 15px; font-weight: 800; line-height: 1.35; }
-.message span { max-width: 100%; font-size: 14px; font-weight: 500; line-height: 1.5; color: #fff; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.message b { font-size: 15.5px; font-weight: 800; line-height: 1.35; }
+.message span { max-width: 100%; font-size: 13.5px; font-weight: 400; line-height: 1.5; color: var(--ink-soft); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 
 /* a card opened big */
 .zoom { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: rgba(9,8,28,.97); cursor: zoom-out; }
 .zoom-card { width: min(72vw, 300px, 52vh); aspect-ratio: 5 / 7; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
 .zoom p { max-width: 320px; font-size: 14px; text-align: center; color: var(--ink-soft); }
-.zoom strong { display: block; font-size: 17px; color: #fff; }
+.zoom strong { display: block; font-size: 17px; color: #ffe3a6; }
 .zoom > small { font-size: 12px; opacity: .6; }
 
 /* dialogs */
-.sheet { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(9,8,28,.62); }
-.panel { position: relative; display: flex; flex-direction: column; gap: 12px; width: 100%; max-height: 92%; overflow-y: auto; padding: 18px 16px; background: rgba(50,48,86,.96); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.55); }
-.panel h2 { padding-inline: 40px; font-size: 22px; font-weight: 800; text-align: center; }
+.sheet { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(6,8,24,.7); }
+/* a dialog is a pane of night glass with a silver edge, lit a little from the moon above */
+.panel { position: relative; display: flex; flex-direction: column; gap: 12px; width: 100%; max-height: 92%; overflow-y: auto; padding: 18px 16px; background: radial-gradient(90% 40% at 50% 0, rgba(150,175,255,.14), transparent), linear-gradient(180deg, #252b62, #171a44); border: 1px solid rgba(var(--silver),.3); border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 24px 60px rgba(0,0,0,.6); }
+.panel h2 { padding-inline: 40px; font-size: 22px; font-weight: 800; text-align: center; color: #f2f5fc; }
 .panel h3 { margin-top: 4px; font-size: 15px; font-weight: 800; }
 .panel p { font-size: 13.5px; color: var(--ink-soft); }
 /* the close button stays in sight while a long dialog scrolls */
-.panel-close { position: sticky; top: 0; align-self: flex-end; margin-bottom: -48px; z-index: 2; display: grid; place-items: center; width: 36px; height: 36px; padding: 8px; background: #6e7385; border: 2px solid #fff; border-radius: 50%; }
-.game-btn { flex: none; padding: 12px; font-size: 15px; font-weight: 800; color: #fff; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.75); border-radius: 12px; }
-.game-btn.primary { background: linear-gradient(180deg, #a657cd, #7a3aa6); border-color: #fff; box-shadow: 0 0 18px rgba(var(--halo),.6); }
-.game-btn.danger { background: rgba(200,60,50,.25); border-color: rgba(255,140,120,.85); }
+.panel-close { position: sticky; top: 0; align-self: flex-end; margin-bottom: -48px; z-index: 2; display: grid; place-items: center; width: 36px; height: 36px; padding: 9px; background: #1c2150; border: 1.5px solid rgba(var(--silver),.7); border-radius: 50%; }
+.game-btn { flex: none; padding: 12px; font-size: 15px; font-weight: 800; color: #fff; background: rgba(255,255,255,.06); border: 1.5px solid rgba(var(--silver),.55); border-radius: 12px; }
+.game-btn.primary { color: var(--gold-ink); background: linear-gradient(180deg, #ffd98a, #eea63e); border-color: #fff1cf; box-shadow: 0 0 18px rgba(var(--gold),.4), inset 0 1px 0 rgba(255,255,255,.5); }
+.game-btn.danger { color: #ffd2c4; background: rgba(200,60,50,.16); border-color: rgba(255,140,120,.7); }
 .game-btn:active { scale: .98; }
 .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .row-help { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; }
@@ -207,41 +211,41 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .res header span:last-child { font-weight: 400; color: var(--ink-soft); font-size: 12.5px; }
 .panel p + p { margin-top: -6px; }
 .res { padding: 6px 8px; border-radius: 10px; border: 1px solid transparent; }
-.res.best { border-color: rgba(155,232,168,.6); background: rgba(155,232,168,.08); }
+.res.best { border-color: rgba(var(--gold),.55); background: rgba(var(--gold),.07); }
 .res header b { font-size: 16px; }
 .res header small { margin-inline-start: 4px; font-size: 11.5px; opacity: .8; }
-.res em { margin-inline-start: 4px; padding: 0 6px; font-size: 11px; font-style: normal; color: #123; background: #9be8a8; border-radius: 999px; }
+.res em { margin-inline-start: 4px; padding: 0 6px; font-size: 11px; font-style: normal; color: var(--gold-ink); background: rgb(var(--gold)); border-radius: 999px; }
 .res-cards { display: flex; flex-wrap: wrap; gap: 4px; }
 .res-cards .slot { flex: 0 0 44px; }
-.score tr.best td { color: #9be8a8; }
+.score tr.best td { color: #ffd27a; }
 .panel h3 small { font-size: 12px; font-weight: 500; opacity: .75; }
 .lab { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .seg { display: flex; gap: 6px; }
 .seg + .lab { margin-top: 4px; }
-.seg button { flex: 1; padding: 11px 4px; font-size: 14px; font-weight: 800; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.28); border-radius: 12px; }
-.seg button.on { background: rgba(var(--halo),.55); border-color: #fff; }
+.seg button { flex: 1; padding: 11px 4px; font-size: 14px; font-weight: 700; color: var(--ink-soft); background: rgba(255,255,255,.05); border: 1.5px solid rgba(var(--silver),.25); border-radius: 12px; }
+.seg button.on { color: #ffe3a6; font-weight: 800; background: rgba(var(--gold),.14); border-color: rgb(var(--gold)); }
 
 /* start screen */
+/* the same night as the table, with the full moon rising behind the name */
 .start { display: flex; flex-direction: column; align-items: center; padding: calc(5vh + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
-  background:
-    radial-gradient(60% 18% at 30% 40%, rgba(255,255,255,.3), transparent),
-    radial-gradient(70% 22% at 72% 54%, rgba(255,255,255,.22), transparent),
-    linear-gradient(180deg, #4d7da7 0%, #7f97cf 32%, #a8a9e6 52%, #6d8cb9 76%, #1c5a6d 100%); }
-.logo { flex: none; text-align: center; }
-.logo h1 { font-size: 66px; font-weight: 900; line-height: 1.1; text-shadow: 0 0 14px #fff, 0 3px 26px rgba(70,40,130,.65); }
-.logo p { font-size: 15px; font-weight: 700; letter-spacing: .2em; opacity: .9; text-shadow: 0 1px 6px rgba(50,30,110,.8); }
+  background: linear-gradient(transparent 84%, rgba(6,8,26,.5)), url(art/sky-start.webp) 50% 100% / cover no-repeat, var(--sky); }
+.logo { flex: none; text-align: center; padding-top: 40px; }
+/* silver lettering, dark-edged so it stays readable on the moon */
+.logo h1 { font-size: 66px; font-weight: 900; line-height: 1.1; color: #f4f6fb; text-shadow: 0 2px 0 #7d88aa, 0 4px 18px rgba(10,14,40,.85), 0 0 2px #10142e; }
+.logo p { margin-top: 2px; font-size: 16px; font-weight: 800; color: #ffd27a; text-shadow: 0 1px 6px rgba(10,14,40,.9); }
 /* a fixed gap, not one tied to the screen height: on short or zoomed screens the line under
    the big buttons must never run into the small buttons below */
 .main-actions { flex: none; display: flex; justify-content: space-around; width: 100%; margin-bottom: 36px; }
+.main-actions.one { justify-content: center; }
 .note-under { margin-top: -3px; font-size: 12px; font-weight: 600; white-space: nowrap; opacity: .85; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .round-btn.big { width: 84px; gap: 6px; }
 .round-btn.big small { font-size: 15px; }
-.round-btn.big .ring { box-shadow: 0 0 34px 16px rgba(var(--halo),.55); }
+.round-btn.big.gold .ring { box-shadow: 0 0 30px 8px rgba(var(--gold),.45), inset 0 1px 0 rgba(255,255,255,.5); }
 .hero { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
 /* the fan fills the space between the title and the buttons, centred in it;
    its cards are sized by width too, so the outer ones never leave the screen */
 .fan { position: relative; width: 100%; height: 100%; }
-.fan span { position: absolute; top: 50%; left: 50%; height: min(58%, calc(var(--app) * .5), 250px); aspect-ratio: 5 / 7; translate: -50% -50%; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 12px 26px rgba(20,14,60,.55); transform-origin: 50% 135%; }
+.fan span { position: absolute; top: 50%; left: 50%; height: min(58%, calc(var(--app) * .5), 250px); aspect-ratio: 5 / 7; translate: -50% -50%; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 12px 26px rgba(4,6,24,.6), 0 0 0 1px rgba(var(--silver),.18); transform-origin: 50% 135%; }
 .fan span:nth-child(1) { rotate: -26deg; }
 .fan span:nth-child(2) { rotate: -13deg; }
 .fan span:nth-child(4) { rotate: 13deg; }
