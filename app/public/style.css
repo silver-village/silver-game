@@ -221,20 +221,24 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .logo { flex: none; text-align: center; }
 .logo h1 { font-size: 66px; font-weight: 900; line-height: 1.1; text-shadow: 0 0 14px #fff, 0 3px 26px rgba(70,40,130,.65); }
 .logo p { font-size: 15px; font-weight: 700; letter-spacing: .2em; opacity: .9; text-shadow: 0 1px 6px rgba(50,30,110,.8); }
-.main-actions { flex: none; display: flex; justify-content: space-around; width: 100%; margin: 1vh 0 3vh; }
-.note-under { font-size: 12px; font-weight: 600; white-space: nowrap; opacity: .85; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+/* a fixed gap, not one tied to the screen height: on short or zoomed screens the line under
+   the big buttons must never run into the small buttons below */
+.main-actions { flex: none; display: flex; justify-content: space-around; width: 100%; margin-bottom: 36px; }
+.note-under { margin-top: -3px; font-size: 12px; font-weight: 600; white-space: nowrap; opacity: .85; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .round-btn.big { width: 84px; gap: 6px; }
 .round-btn.big small { font-size: 15px; }
 .round-btn.big .ring { box-shadow: 0 0 34px 16px rgba(var(--halo),.55); }
 .hero { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
-.fan { position: relative; width: 100%; height: min(44vh, 340px); }
-.fan span { position: absolute; bottom: 14%; left: 50%; height: 70%; aspect-ratio: 5 / 7; translate: -50% 0; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 12px 26px rgba(20,14,60,.55); transform-origin: 50% 135%; }
+/* the fan fills the space between the title and the buttons, centred in it;
+   its cards are sized by width too, so the outer ones never leave the screen */
+.fan { position: relative; width: 100%; height: 100%; }
+.fan span { position: absolute; top: 50%; left: 50%; height: min(58%, calc(var(--app) * .5), 250px); aspect-ratio: 5 / 7; translate: -50% -50%; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 12px 26px rgba(20,14,60,.55); transform-origin: 50% 135%; }
 .fan span:nth-child(1) { rotate: -26deg; }
 .fan span:nth-child(2) { rotate: -13deg; }
 .fan span:nth-child(4) { rotate: 13deg; }
 .fan span:nth-child(5) { rotate: 26deg; }
 .home-tools { flex: none; display: flex; justify-content: space-around; width: 100%; }
-.home-tools .round-btn { width: 56px; }
+.home-tools .round-btn { width: 50px; }
 
 @media (max-height: 700px) {
   .top-bar { padding-block: 6px 4px; }
