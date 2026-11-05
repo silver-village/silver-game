@@ -82,7 +82,26 @@ interface Controls {
 
 let game: GameState | null = null;
 let gameId = 0;
-let rivalsWanted = 1;
+/* choices on the start screen survive closing the app */
+const PREFS_KEY = 'silver-prefs-v1';
+const SPEEDS = { slow: 1.5, normal: 1, fast: 0.5 } as const;
+type Speed = keyof typeof SPEEDS;
+const prefs: { rivals: number; speed: Speed; buzz: boolean } = (() => {
+  const base = { rivals: 1, speed: 'normal' as Speed, buzz: true };
+  try {
+    const got = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<typeof base>;
+    return {
+      rivals: [1, 2, 3].includes(got.rivals ?? 0) ? (got.rivals as number) : base.rivals,
+      speed: got.speed && got.speed in SPEEDS ? got.speed : base.speed,
+      buzz: typeof got.buzz === 'boolean' ? got.buzz : base.buzz,
+    };
+  } catch { return base; }
+})();
+function savePrefs(): void {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode: they just reset next time */ }
+}
+/** how long a rival's step stays on screen */
+const pace = (ms: number) => Math.round(ms * SPEEDS[prefs.speed]);
 let installEvent: (Event & { prompt: () => void }) | null = null;
 const U = {
   sel: new Set<CardId>(),
@@ -232,6 +251,8 @@ function act(cmd: Command): void {
   } catch (e) {
     if (!(e instanceof RuleError)) throw e;
     U.note = e.message;
+    const shown = U.note;
+    setTimeout(() => { if (U.note === shown) { U.note = ''; render(); } }, 4000);
   }
   settle();
 }
@@ -272,11 +293,15 @@ async function runRivals(): Promise<void> {
   }
   U.verb = '';
   U.arrow = null;
+  /* a short buzz says the rivals are done and it is the player's turn */
+  if (prefs.buzz && game?.phase === 'turn' && game.current === ME) {
+    try { navigator.vibrate?.(30); } catch { /* not every phone can */ }
+  }
   settle();
 }
 async function rivalMove(p: number, cmd: Command): Promise<void> {
   const s = game as GameState;
-  const beat = async (verb: string, ms = 1500) => { U.verb = verb; render(); await wait(ms); };
+  const beat = async (verb: string, ms = 1500) => { U.verb = verb; render(); await wait(pace(ms)); };
   const go = () => { dispatch(p, cmd); };
   const aim = async (from: CardId, to: CardId, verb: string) => { U.arrow = { from, to }; await beat(verb); U.arrow = null; };
   switch (cmd.type) {
@@ -328,7 +353,7 @@ async function rivalMove(p: number, cmd: Command): Promise<void> {
     case 'guard': go(); U.pulse.add(cmd.target ?? cmd.guard); await beat('محافظ گذاشت'); return;
     case 'placeAmulet': go(); U.pulse.add(cmd.card); await beat('طلسم گذاشت'); return;
     case 'call': go(); await beat('سرشماری کرد'); return;
-    case 'confirm': go(); U.verb = ''; render(); await wait(500); return;
+    case 'confirm': go(); U.verb = ''; render(); await wait(pace(500)); return;
     default: go();
   }
 }
@@ -559,7 +584,7 @@ let reg: (() => void)[] = [];
 const rb = (fn: () => void) => reg.push(fn) - 1;
 
 /** ghost: a copy shown somewhere else (big in the middle), so it must not take part in the glide */
-function cardEl(c: CardView, opts: { act?: number; go?: boolean; extra?: string; ghost?: boolean } = {}): string {
+function cardEl(c: CardView, opts: { act?: number; go?: boolean; extra?: string; ghost?: boolean; where?: string } = {}): string {
   const rank = U.peek.get(c.id) ?? U.reveal.get(c.id) ?? c.rank;
   const visible = rank !== null;
   const cls = ['card', visible ? 'face' : 'back'];
@@ -570,7 +595,7 @@ function cardEl(c: CardView, opts: { act?: number; go?: boolean; extra?: string;
   if (opts.go) cls.push('go');
   if (opts.extra) cls.push(opts.extra);
   const art = visible ? ` style="background-image:url(art/c${rank}.jpg)"` : '';
-  const aria = (visible ? `${nameOf(rank)}، عدد ${fa(rank)}` : 'کارت پشت‌ورو') + (U.sel.has(c.id) ? '، انتخاب‌شده' : '');
+  const aria = (opts.where ? opts.where + ': ' : '') + (visible ? `${nameOf(rank)}، عدد ${fa(rank)}` : 'کارت پشت‌ورو') + (U.sel.has(c.id) ? '، انتخاب‌شده' : '');
   const eye = U.eye.has(c.id) ? `<span class="eye">${ICON.eye}</span>` : '';
   const inner = (visible ? `<span class="pip">${fa(rank)}</span><span class="nm">${nameOf(rank)}</span>` : '') + eye;
   /* a face-up card with nothing to do opens big, so its picture and text can be read */
@@ -595,13 +620,14 @@ function villageEl(v: GameView, owner: number, m: Controls): { html: string; cou
     if (c.guarding) return;
     const able = !!m.can?.(c.id, owner);
     const tap = m.tap;
-    let html = cardEl(c, { act: able && tap ? rb(() => tap(c.id, owner)) : undefined, extra: small ? 'mini-card' : '' });
+    const where = `${owner === ME ? 'دهکده‌ی تو' : `دهکده‌ی ${nameIn(owner)}`}، کارت ${fa(i + 1)}`;
+    let html = cardEl(c, { act: able && tap ? rb(() => tap(c.id, owner)) : undefined, extra: small ? 'mini-card' : '', where });
     if (v.amulet.on === c.id) html += `<span class="seal">${AMULET}</span>`;
     const g = row.find(x => x.guarding === c.id);
     let gAble = false;
     if (g) {
       gAble = !!m.can?.(g.id, owner);
-      html += `<span class="guard">${cardEl(g, { act: gAble && tap ? rb(() => tap(g.id, owner)) : undefined, extra: 'mini-card' })}</span>`;
+      html += `<span class="guard">${cardEl(g, { act: gAble && tap ? rb(() => tap(g.id, owner)) : undefined, extra: 'mini-card', where: where + '، محافظ' })}</span>`;
     }
     const dim = !!m.can && !able && !gAble;
     items.push(`<div class="slot${dim ? ' dim' : ''}">${html}</div>`);
@@ -646,11 +672,12 @@ function messageEl(v: GameView, m: Controls): string {
     sub = U.doneMsg;
   } else if (v.phase === 'turn' && v.current !== ME && U.verb) {
     main = `${nameIn(v.current)} ${U.verb}`;
+    sub = 'برای سریع‌تر شدن، روی میز بزن';
   } else if (!m.sub && v.current === ME && v.phase === 'turn' && !v.hand.length && !U.peek.size && U.heard.size) {
     /* what the rivals did since the player's last turn, one line each */
     sub = [...U.heard].map(([p, said]) => `<i style="--c:${SEAT[p]}"></i>${nameIn(p)}: ${said.join('، ')}`).join('<br>');
   }
-  return `<div class="message" role="status"><b>${main}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
+  return `<div class="message"><b>${main}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
 }
 function gameEl(): string {
   const v = view();
@@ -671,11 +698,11 @@ function gameEl(): string {
   const discBtn = pile.length
     ? pile.map((c, i) => {
       const isTop = i === pile.length - 1;
-      return cardEl(c, { act: isTop && m.discard ? rb(m.discard) : undefined, go: isTop && !!m.discard, extra: isTop ? 'discard-card' : 'discard-under' });
+      return cardEl(c, { act: isTop && m.discard ? rb(m.discard) : undefined, go: isTop && !!m.discard, extra: isTop ? 'discard-card' : 'discard-under', where: 'ستون سوخته' });
     }).join('')
     : '<span class="emptypile"></span>';
   const rowFn = m.row;
-  const row = v.row.length ? `<div class="squires">${v.row.map(c => `<div class="sq">${cardEl(c, { act: rowFn ? rb(() => rowFn(c.id)) : undefined, go: !!rowFn })}</div>`).join('')}</div>` : '';
+  const row = v.row.length ? `<div class="squires">${v.row.map(c => `<div class="sq">${cardEl(c, { act: rowFn ? rb(() => rowFn(c.id)) : undefined, go: !!rowFn, where: 'کنار دسته' })}</div>`).join('')}</div>` : '';
   const piles = `<div class="piles">${row}<div class="pile">${deckBtn}</div><div class="pile">${discBtn}</div></div>`;
   let stage = '';
   if (v.hand.length) {
@@ -718,10 +745,10 @@ function gameEl(): string {
     ${orderEl}
     <div class="rivals${rivalCount > 1 ? ' many' : ''}">${rivals}</div>
     <main class="center-table"${skip}>${piles}${stage}${note}</main>
+    ${messageEl(v, m)}
     <section class="village-section${v.phase === 'turn' && v.current === ME ? ' on' : ''}" aria-label="دهکده‌ی تو">${amuletToken(v, ME)}${v.caller === ME ? '<span class="called">سرشماری کردی</span>' : ''}
       <div class="cards-row-player${m.can ? ' pick' : ''}" style="--n:${columns(mine.count)}">${mine.html}</div></section>
     <nav class="tools" aria-label="کارها">${toolsEl(v, m)}</nav>
-    ${messageEl(v, m)}
     ${sheetEl(v)}
     ${zoomEl()}
   </div>`;
@@ -729,11 +756,16 @@ function gameEl(): string {
 function zoomEl(): string {
   if (U.zoom === null) return '';
   const r = U.zoom;
-  return `<div class="zoom" role="dialog" aria-label="${nameOf(r)}" data-act="${rb(() => { U.zoom = null; render(); })}"><span class="zoom-card" style="background-image:url(art/c${r}.jpg)"></span><p><strong>${label(r)}</strong>${TEXT[r] ?? ''}</p><small>برای بستن بزن</small></div>`;
+  return `<div class="zoom" role="dialog" aria-modal="true" aria-label="${nameOf(r)}" tabindex="-1" data-act="${rb(() => { U.zoom = null; render(); })}"><span class="zoom-card" style="background-image:url(art/c${r}.jpg)"></span><p><strong>${label(r)}</strong>${TEXT[r] ?? ''}</p><small>برای بستن بزن</small></div>`;
 }
+/** A dialog. A closable one also closes with Escape or a tap outside it. */
 function panel(title: string, body: string, closable = true): string {
-  const close = closable ? `<button type="button" class="panel-close" aria-label="بستن" data-act="${rb(() => { U.sheet = null; render(); })}">${ICON.close}</button>` : '';
-  return `<div class="sheet"><div class="panel">${close}<h2>${title}</h2>${body}</div></div>`;
+  const close = closable ? `<button type="button" class="panel-close" aria-label="بستن" data-act="${rb(closeSheet)}">${ICON.close}</button>` : '';
+  return `<div class="sheet"${closable ? ' data-close="1"' : ''}><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" tabindex="-1">${close}<h2 id="panel-title">${title}</h2>${body}</div></div>`;
+}
+function closeSheet(): void {
+  U.sheet = null;
+  render();
 }
 function helpBody(): string {
   return AMULET_SET.map(d => `<div class="row-help"><button type="button" class="thumb" data-zoom="${d.rank}" aria-label="${d.name} بزرگ" style="background-image:url(art/c${d.rank}.jpg)"></button><p><strong>${d.name} · ${fa(d.rank)}</strong><small>${fa(d.count)} کارت</small>${TEXT[d.rank]}</p></div>`).join('');
@@ -761,10 +793,24 @@ function resultText(v: GameView): string {
   }
   return lines.map(l => `<p>${l}</p>`).join('');
 }
+/** The log, newest first, with each player's moves in a row joined into one line. */
+function historyEl(v: GameView): string {
+  const groups: { who: number; texts: string[] }[] = [];
+  for (const line of U.log) {
+    const who = v.players.findIndex(p => line.startsWith(p.name + ': '));
+    const text = who < 0 ? line : line.slice((v.players[who]?.name.length ?? 0) + 2);
+    const last = groups[groups.length - 1];
+    if (last && last.who === who && who >= 0) last.texts.push(text);
+    else groups.push({ who, texts: [text] });
+  }
+  return `<ul class="logs">${groups.reverse().map(g => (g.who < 0
+    ? `<li class="sep">${g.texts.join('، ')}</li>`
+    : `<li><i style="--c:${SEAT[g.who]}"></i><b>${nameIn(g.who)}:</b> ${g.texts.join('، ')}</li>`)).join('')}</ul>`;
+}
 function sheetEl(v: GameView): string {
   if (v.phase === 'gameEnd') {
     const title = v.winner === ME ? 'تو بردی!' : `${v.players[v.winner ?? 0]?.name} برد`;
-    const again = () => { rivalsWanted = v.players.length - 1; startGame(rivalsWanted); };
+    const again = () => { prefs.rivals = v.players.length - 1; startGame(prefs.rivals); };
     return panel(title, `<p>برنده کسی است که در پایان ${fa(ROUNDS)} دور کمترین جمع امتیاز را دارد.</p>${scoreTable(v)}
       <button type="button" class="game-btn primary" data-act="${rb(again)}">یک بازی دیگر</button>
       <button type="button" class="game-btn" data-act="${rb(leave)}">صفحه‌ی اول</button>`, false);
@@ -789,7 +835,7 @@ function sheetEl(v: GameView): string {
   }
   if (U.sheet === 'score') {
     const scores = v.players.some(p => p.scores.length) ? scoreTable(v) : '<p>هنوز هیچ دوری تمام نشده است. امتیاز کمتر بهتر است.</p>';
-    const history = U.log.length ? `<h3>تاریخچه</h3><ul class="logs">${[...U.log].reverse().map(l => `<li>${l}</li>`).join('')}</ul>` : '';
+    const history = U.log.length ? `<h3>تاریخچه <small>(تازه‌ترین بالا)</small></h3>${historyEl(v)}` : '';
     return panel('امتیازها', scores + history);
   }
   if (U.sheet === 'help') return panel('کارت‌ها', helpBody());
@@ -798,30 +844,33 @@ function sheetEl(v: GameView): string {
 function startEl(): string {
   const fan = [13, 10, 0, 12, 9].map(r => `<span style="background-image:url(art/c${r}.jpg)"></span>`).join('');
   const data = saved();
-  const big = (icon: string, text: string, fn?: () => void) => `<button type="button" class="round-btn big"${fn ? ` data-act="${rb(fn)}"` : ' disabled'}>${round(icon)}<small>${text}</small></button>`;
+  const big = (icon: string, text: string, fn?: () => void, note = '') => `<button type="button" class="round-btn big"${fn ? ` data-act="${rb(fn)}"` : ' disabled'}>${round(icon)}<small>${text}</small>${note ? `<span class="note-under">${note}</span>` : ''}</button>`;
   /* a half-played game is never thrown away without asking */
-  const fresh = () => { if (data) { U.sheet = 'newGame'; render(); } else startGame(rivalsWanted); };
-  const small = (icon: string, text: string, fn: () => void) => `<button type="button" class="round-btn"  data-act="${rb(fn)}">${round(icon)}<small>${text}</small></button>`;
+  const fresh = () => { if (data) { U.sheet = 'newGame'; render(); } else startGame(prefs.rivals); };
+  const small = (icon: string, text: string, fn: () => void) => `<button type="button" class="round-btn" data-act="${rb(fn)}">${round(icon)}<small>${text}</small></button>`;
   const open = (name: 'settings' | 'help') => () => { U.sheet = name; render(); };
   const install = installEvent ? small(ICON.install, 'نصب', () => { installEvent?.prompt(); installEvent = null; render(); }) : '';
+  const where = (g: GameState) => (g.phase === 'roundEnd' ? `پایان دور ${fa(g.round)}` : `دور ${fa(g.round)} از ${fa(ROUNDS)}`);
   let sheet = '';
   if (U.sheet === 'help') sheet = panel('کارت‌ها', helpBody());
   if (U.sheet === 'settings') {
-    const seg = [1, 2, 3].map(n => `<button type="button" class="${rivalsWanted === n ? 'on' : ''}" data-act="${rb(() => { rivalsWanted = n; render(); })}">${fa(n)} رقیب</button>`).join('');
-    sheet = panel('تنظیمات', `<div class="lab">تعداد رقیب</div><div class="seg">${seg}</div>`);
+    const seg = <T,>(items: [T, string][], now: T, set: (x: T) => void) => `<div class="seg">${items.map(([x, t]) => `<button type="button" class="${now === x ? 'on' : ''}" aria-pressed="${now === x}" data-act="${rb(() => { set(x); savePrefs(); render(); })}">${t}</button>`).join('')}</div>`;
+    sheet = panel('تنظیمات', `<div class="lab">تعداد رقیب در بازی جدید</div>${seg([[1, '۱ رقیب'], [2, '۲ رقیب'], [3, '۳ رقیب']], prefs.rivals, x => { prefs.rivals = x; })}
+      <div class="lab">سرعت حرکت رقیب‌ها</div>${seg<Speed>([['slow', 'آرام'], ['normal', 'معمولی'], ['fast', 'سریع']], prefs.speed, x => { prefs.speed = x; })}
+      <div class="lab">لرزش گوشی وقتی نوبت تو می‌شود</div>${seg([[true, 'روشن'], [false, 'خاموش']], prefs.buzz, x => { prefs.buzz = x; })}
+      <p>وسط نوبت رقیب‌ها هم می‌توانی روی میز بزنی تا سریع‌تر جلو بروند.</p>`);
   }
   if (U.sheet === 'newGame' && data) {
     const g = data.game;
-    const where = g.phase === 'roundEnd' ? `پایان دور ${fa(g.round)}` : `دور ${fa(g.round)} از ${fa(ROUNDS)}`;
-    sheet = panel('بازی جدید؟', `<p>یک بازی نیمه‌کاره داری (${where}، ${fa(g.players.length - 1)} رقیب). اگر بازی جدید شروع کنی، آن بازی پاک می‌شود و برنمی‌گردد.</p>
+    sheet = panel('بازی جدید؟', `<p>یک بازی نیمه‌کاره داری (${where(g)}، ${fa(g.players.length - 1)} رقیب). اگر بازی جدید شروع کنی، آن بازی پاک می‌شود و برنمی‌گردد.</p>
       <button type="button" class="game-btn primary" data-act="${rb(() => resume(data))}">ادامه‌ی همان بازی</button>
-      <button type="button" class="game-btn danger" data-act="${rb(() => startGame(rivalsWanted))}">پاکش کن، بازی جدید</button>`);
+      <button type="button" class="game-btn danger" data-act="${rb(() => startGame(prefs.rivals))}">پاکش کن، بازی جدید (${fa(prefs.rivals)} رقیب)</button>`);
   }
   return `<div class="start">
     <div class="logo"><h1>سیلور</h1><p>طلسم</p></div>
-    <div class="main-actions">${big(ICON.star, 'بازی جدید', fresh)}${big(ICON.resume, 'ادامه', data ? () => resume(data) : undefined)}</div>
     <div class="hero" aria-hidden="true"><div class="fan">${fan}</div></div>
-    <nav class="home-tools">${small(ICON.gear, `${fa(rivalsWanted)} رقیب`, open('settings'))}${small(ICON.cards, 'کارت‌ها', open('help'))}${install}</nav>
+    <div class="main-actions">${big(ICON.star, 'بازی جدید', fresh, `${fa(prefs.rivals)} رقیب`)}${big(ICON.resume, 'ادامه', data ? () => resume(data) : undefined, data ? where(data.game) : 'بازی ذخیره‌شده نیست')}</div>
+    <nav class="home-tools">${small(ICON.gear, 'تنظیمات', open('settings'))}${small(ICON.cards, 'کارت‌ها', open('help'))}${install}</nav>
     ${sheet}${zoomEl()}</div>`;
 }
 
@@ -834,10 +883,14 @@ function render(): void {
   const oldDeck = deckEl?.getBoundingClientRect() ?? null;
   const oldDeckWidth = deckEl?.offsetWidth ?? 0;
   const top = root.querySelector('.panel')?.scrollTop ?? 0;
+  const focusKey = keyOf(document.activeElement);
+  const hadDialog = !!root.querySelector('.sheet, .zoom');
   reg = [];
   root.innerHTML = game ? gameEl() : startEl();
   const panelEl = root.querySelector('.panel');
   if (panelEl) panelEl.scrollTop = top;
+  keepFocus(focusKey, hadDialog);
+  announce();
   drawArrow();
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   root.querySelectorAll<HTMLElement>('[data-cid]').forEach(el => {
@@ -860,6 +913,43 @@ function render(): void {
     anim.onfinish = () => { el.style.zIndex = ''; };
   });
 }
+/* ---------- keyboard and screen readers: the screen is redrawn after every move ---------- */
+/** Something that finds the same button again after a redraw. */
+function keyOf(el: Element | null): string | null {
+  if (!(el instanceof HTMLElement) || !root.contains(el) || el === root) return null;
+  if (el.dataset.cid) return `[data-cid="${el.dataset.cid}"]`;
+  return `${el.tagName}|${el.className}|${el.getAttribute('aria-label') ?? ''}|${el.textContent ?? ''}`;
+}
+function keepFocus(key: string | null, hadDialog: boolean): void {
+  const dialog = root.querySelector<HTMLElement>('.zoom') ?? root.querySelector<HTMLElement>('.panel');
+  /* behind an open dialog nothing can be reached */
+  root.querySelectorAll<HTMLElement>('.game > *, .start > *').forEach(el => {
+    el.inert = !!dialog && !el.contains(dialog) && !el.matches('.sheet, .zoom');
+  });
+  if (dialog && !hadDialog) { dialog.focus(); return; }
+  if (!key) return;
+  let target: HTMLElement | null = null;
+  if (key.startsWith('[')) target = root.querySelector<HTMLElement>(key);
+  else target = Array.from(root.querySelectorAll<HTMLElement>('button')).find(b => keyOf(b) === key) ?? null;
+  if (!target || (target as HTMLButtonElement).disabled || target.inert || target.closest('[inert]')) {
+    /* the next thing to do is usually in the tool row */
+    const scope = dialog ?? root;
+    target = scope.querySelector<HTMLElement>('.tools button:not([disabled])') ?? scope.querySelector<HTMLElement>('button[data-act]');
+  }
+  target?.focus({ preventScroll: true });
+}
+let lastSaid = '';
+/** The message line is rebuilt each time, so a steady live region outside the redraw reads it out. */
+function announce(): void {
+  const live = document.getElementById('live');
+  const text = (root.querySelector('.message') as HTMLElement | null)?.innerText.replace(/\s+/g, ' ').trim() ?? '';
+  if (live && text && text !== lastSaid) { lastSaid = text; live.textContent = text; }
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (U.zoom !== null) { U.zoom = null; render(); return; }
+  if (root.querySelector('.sheet[data-close]')) closeSheet();
+});
 function drawArrow(): void {
   if (!U.arrow) return;
   const a = root.querySelector(`[data-cid="${U.arrow.from}"]`);
@@ -875,6 +965,8 @@ function drawArrow(): void {
   root.insertAdjacentHTML('beforeend', `<svg class="arrow" width="${o.width}" height="${o.height}"><defs><marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#d9583a"/></marker></defs><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d9583a" stroke-width="4" stroke-linecap="round" marker-end="url(#tip)" pathLength="1"/></svg>`);
 }
 root.addEventListener('click', e => {
+  /* a tap on the dark area around a closable dialog closes it */
+  if ((e.target as HTMLElement).matches('.sheet[data-close]')) { closeSheet(); return; }
   const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
   if (z) {
     U.zoom = Number(z.dataset.zoom);
