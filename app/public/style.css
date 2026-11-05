@@ -41,26 +41,30 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .top-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 14px 6px; }
 .round-title { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .round-title h1 { font-size: 23px; font-weight: 800; line-height: 1.3; }
+.round-title h1 small { font-size: 14px; font-weight: 600; opacity: .75; }
 /* who plays now, then who comes next (in reading order) */
 .order { flex: none; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 2px 0; min-height: 24px; padding: 0 10px 6px; list-style: none; font-size: 12px; font-weight: 700; line-height: 18px; }
 .order li { position: relative; padding: 0 9px; white-space: nowrap; color: var(--ink-soft); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; }
 .order li + li { margin-inline-start: 18px; }
 .order li + li::before { content: "←"; position: absolute; inset-inline-start: -15px; color: rgba(255,255,255,.55); }
 .order li.me { font-weight: 800; }
+.order li b { margin-inline-start: 2px; font-weight: 800; }
+i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-end: 4px; vertical-align: 1px; border-radius: 50%; background: var(--c); }
 .order li.now { color: #1d1236; font-weight: 800; background: #fff; border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,.6); }
 
 /* 2. rivals */
 .rivals { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 0 6px; }
-.rival-panel { position: relative; }
-.rivals:not(.many) .rival-panel { padding: 3px; border-radius: 10px; border: 1px solid transparent; }
+.rival-panel { position: relative; display: flex; align-items: center; gap: 6px; }
+.rivals:not(.many) .rival-panel { padding: 3px 5px; border-radius: 10px; border: 1px solid transparent; }
+.rivals:not(.many) .cards-row-rival { flex: 1; min-width: 0; }
 .rivals:not(.many) .rival-panel.on { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); }
-.rival-avatar { display: none; }
+.rival-avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; font-size: 13px; font-weight: 800; color: #1d1236; background: var(--c, #5f6876); border: 1.5px solid #fff; border-radius: 50%; }
+.rival-panel.on .rival-avatar { box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 12px var(--c); }
 .cards-row-rival, .cards-row-player { display: flex; justify-content: center; gap: 4px; }
 .slot { position: relative; flex: 0 0 calc((100% - (var(--n, 5) - 1) * 4px) / var(--n, 5)); min-width: 0; }
 .rival-panel.on .card { box-shadow: 0 3px 10px rgba(0,0,0,.45), 0 0 10px rgba(255,255,255,.3); }
 .rivals.many .rival-panel { display: flex; align-items: center; gap: 6px; padding: 3px 5px; border-radius: 10px; border: 1px solid transparent; }
 .rivals.many .rival-panel.on { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); }
-.rivals.many .rival-avatar { flex: none; display: grid; place-items: center; width: 26px; height: 26px; font-size: 13px; font-weight: 800; background: #5f6876; border: 1.5px solid #fff; border-radius: 50%; }
 .rivals.many .cards-row-rival { flex: 1; min-width: 0; gap: 3px; }
 .rivals.many .slot { flex: 0 0 min(calc((100% - 18px) / var(--n, 5)), 6.6vh); }
 .called { position: absolute; bottom: -9px; inset-inline-start: 8px; z-index: 6; padding: 0 8px; font-size: 11px; font-weight: 800; color: #1d1236; background: #ffd9f4; border-radius: 999px; }
@@ -92,8 +96,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .hand { display: flex; gap: 8px; flex: none; }
 .hand .card { width: min(38vw, 158px, 21vh); box-shadow: 0 12px 30px rgba(0,0,0,.65), 0 0 26px rgba(214,188,255,.55); }
 .hand.many .card { width: min(28vw, 118px, 18vh); }
-.spot { cursor: pointer; background: none; }
-.spot .hand .card { pointer-events: none; width: min(24vw, 100px, 15vh); }
+.watch .hand .card { width: min(26vw, 108px, 16vh); }
 .note { position: absolute; inset: 6px 12px auto; z-index: 6; padding: 6px 12px; font-size: 13px; color: #fff; background: rgba(120,28,50,.95); border: 1px solid rgba(255,255,255,.4); border-radius: 10px; }
 
 /* 4. the player's village: a band across the screen */
@@ -110,12 +113,13 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .card { display: block; width: 100%; aspect-ratio: 5 / 7; position: relative; overflow: hidden; border-radius: var(--radius); background: #090d14 center / cover no-repeat; box-shadow: 0 3px 10px rgba(0,0,0,.45); transition: translate .22s cubic-bezier(.2,.8,.2,1), scale .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s, opacity .16s; }
 .card.back { background-image: url(art/back.jpg); }
 .card[disabled] { cursor: default; }
+.card.idle { cursor: zoom-in; }
 .card .nm { display: none; }
 .card .pip { display: none; position: absolute; inset: auto 0 0; font-size: 11px; font-weight: 800; color: #fff; background: rgba(0,0,0,.72); line-height: 1.4; }
 .rivals.many .pip, .guard .pip { display: block; }
-.pick .card:not([disabled]), .card.go { box-shadow: 0 0 0 2px #fff, 0 0 16px 3px rgba(214,170,255,.9); animation: breathe 1.6s ease-in-out infinite; }
+.pick .card:not([disabled]):not(.idle), .card.go { box-shadow: 0 0 0 2px #fff, 0 0 16px 3px rgba(214,170,255,.9); animation: breathe 1.6s ease-in-out infinite; }
 .dim { opacity: .34; }
-.card.sel, .pick .card.sel:not([disabled]) { translate: 0 -14px; z-index: 5; animation: none; box-shadow: 0 0 0 3px #fff, 0 10px 22px rgba(0,0,0,.6), 0 0 22px 6px rgba(143,240,190,.85); }
+.card.sel, .pick .card.sel:not([disabled]):not(.idle) { translate: 0 -14px; z-index: 5; animation: none; box-shadow: 0 0 0 3px #fff, 0 10px 22px rgba(0,0,0,.6), 0 0 22px 6px rgba(143,240,190,.85); }
 .card.peek { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px rgba(214,170,255,.9); }
 .card.marked { box-shadow: 0 0 0 3px #ff6b6b, 0 0 16px 4px rgba(255,107,107,.8); }
 .card.pulse { animation: pulse 1s ease 3; }
@@ -132,11 +136,14 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 
 /* 5. tools: every slot stays put, resting ones fade back */
-.tools { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: start; gap: 4px; min-height: 72px; padding: 8px 10px 0; }
-.tool { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.tools { flex: none; display: flex; justify-content: center; align-items: flex-start; gap: 4px; min-height: 72px; padding: 8px 10px 0; }
+.tool { flex: 0 1 74px; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.tools-sep { flex: none; align-self: stretch; width: 1px; margin: 2px 6px 12px; background: var(--line); }
 .tool .ring { width: min(100%, 46px); }
 .tool small { max-width: 100%; font-size: 11px; font-weight: 700; line-height: 1.25; text-align: center; }
-.tool.off .ring { color: rgba(255,255,255,.2); border-color: rgba(255,255,255,.14); background: none; box-shadow: none; }
+.tool.off { cursor: default; }
+.tool.off .ring { color: rgba(255,255,255,.45); border-color: rgba(255,255,255,.35); background: none; box-shadow: none; }
+.tool.off small { opacity: .6; }
 .tool.off img { opacity: .18; }
 .tool.art .ring { overflow: hidden; }
 .tool.art img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: screen; }
@@ -146,7 +153,14 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 /* 6. what is happening */
 .message { flex: none; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; min-height: 92px; padding: 2px 14px 8px; text-align: center; }
 .message b { font-size: 15px; font-weight: 800; line-height: 1.35; }
-.message span { max-width: 100%; font-size: 14px; font-weight: 500; line-height: 1.5; color: #fff; }
+.message span { max-width: 100%; font-size: 14px; font-weight: 500; line-height: 1.5; color: #fff; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+
+/* a card opened big */
+.zoom { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: rgba(9,8,28,.88); cursor: zoom-out; }
+.zoom-card { width: min(72vw, 300px, 52vh); aspect-ratio: 5 / 7; border-radius: var(--radius); background: #000 center / cover; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+.zoom p { max-width: 320px; font-size: 14px; text-align: center; color: var(--ink-soft); }
+.zoom strong { display: block; font-size: 17px; color: #fff; }
+.zoom > small { font-size: 12px; opacity: .6; }
 
 /* dialogs */
 .sheet { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(9,8,28,.62); }
@@ -174,8 +188,16 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .res { display: flex; flex-direction: column; gap: 5px; }
 .res header { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 800; }
 .res header span:last-child { font-weight: 400; color: var(--ink-soft); font-size: 12.5px; }
-.res .cards-row-rival { justify-content: flex-start; }
-.res .slot { flex-basis: min(calc((100% - 24px) / var(--n, 5)), 50px); }
+.panel p + p { margin-top: -6px; }
+.res { padding: 6px 8px; border-radius: 10px; border: 1px solid transparent; }
+.res.best { border-color: rgba(155,232,168,.6); background: rgba(155,232,168,.08); }
+.res header b { font-size: 16px; }
+.res header small { margin-inline-start: 4px; font-size: 11.5px; opacity: .8; }
+.res em { margin-inline-start: 4px; padding: 0 6px; font-size: 11px; font-style: normal; color: #123; background: #9be8a8; border-radius: 999px; }
+.res-cards { display: flex; flex-wrap: wrap; gap: 4px; }
+.res-cards .slot { flex: 0 0 44px; }
+.score tr.best td { color: #9be8a8; }
+.panel h3 small { font-size: 12px; font-weight: 500; opacity: .75; }
 .lab { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .seg { display: flex; gap: 6px; }
 .seg button { flex: 1; padding: 11px 4px; font-size: 14px; font-weight: 800; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.28); border-radius: 12px; }
