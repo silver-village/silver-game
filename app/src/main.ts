@@ -709,8 +709,8 @@ function gameEl(): string {
     const on = v.phase === 'turn' && v.current === i;
     const row = villageEl(v, i, m);
     const called = v.caller === i ? '<span class="called">سرشماری کرد</span>' : '';
-    /* the avatar is a placeholder: a character portrait can take its place later */
-    return `<section class="rival-panel${on ? ' on' : ''}" aria-label="${p.name}"><span class="rival-avatar" style="--c:${SEAT[i]}" aria-hidden="true">${fa(i)}</span><div class="cards-row-rival${m.can ? ' pick' : ''}" style="--n:${columns(row.count)}">${row.html}</div>${amuletToken(v, i)}${called}</section>`;
+    const score = p.scores.length ? `<b><span class="sr-only">امتیاز </span>${fa(p.total)}</b>` : '';
+    return `<section class="rival-panel${on ? ' on' : ''}" aria-label="${p.name}"><span class="rival-tag" aria-hidden="true">${p.name}${score}</span><div class="cards-row-rival${m.can ? ' pick' : ''}" style="--n:${columns(row.count)}">${row.html}</div>${amuletToken(v, i)}${called}</section>`;
   }).join('');
   const pile = v.discard.slice(-2);
   const deckBtn = v.deckCount
@@ -747,11 +747,6 @@ function gameEl(): string {
     const seen = [...U.peek].map(([id, rank]) => cardEl({ id, rank, faceUp: false, guarding: null }, { ghost: true })).join('');
     stage = `<div class="stage"><div class="hand${U.peek.size > 1 ? ' many' : ''}">${seen}</div></div>`;
   }
-  const n = v.players.length;
-  const scored = v.players.some(p => p.scores.length);
-  const order = Array.from({ length: n }, (_, k) => (v.current + k) % n)
-    .map((i, k) => `<li class="${k === 0 && v.phase === 'turn' ? 'now' : ''}${i === ME ? ' me' : ''}"><i style="--c:${SEAT[i]}"></i>${nameIn(i)}${scored ? `<b><span class="sr-only">امتیاز </span>${fa(v.players[i]?.total ?? 0)}</b>` : ''}</li>`).join('');
-  const orderEl = v.phase === 'turn' || v.phase === 'peek' ? `<ol class="order" aria-label="ترتیب نوبت‌ها، از نوبت فعلی">${order}</ol>` : '<ol class="order"></ol>';
   const mine = villageEl(v, ME, m);
   const note = U.note ? `<button type="button" class="note" data-act="${rb(() => { U.note = ''; render(); })}">${U.note}</button>` : '';
   const skip = v.current !== ME && v.phase === 'turn' ? ` data-act="${rb(() => skipNow?.())}"` : '';
@@ -763,7 +758,6 @@ function gameEl(): string {
       <div class="round-title"><h1>دور ${fa(v.round)} <small>از ${fa(ROUNDS)}</small></h1></div>
       ${topBtn(ICON.help, 'راهنمای کارت‌ها', () => { U.sheet = 'help'; render(); })}
     </header>
-    ${orderEl}
     <div class="rivals${rivalCount > 1 ? ' many' : ''}">${rivals}</div>
     <main class="center-table"${skip}>${piles}${stage}${note}</main>
     ${messageEl(v, m)}

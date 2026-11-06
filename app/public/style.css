@@ -48,16 +48,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .round-title { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .round-title h1 { font-size: 23px; font-weight: 800; line-height: 1.3; }
 .round-title h1 small { font-size: 14px; font-weight: 600; opacity: .75; }
-/* who plays now, then who comes next (in reading order) */
-.order { flex: none; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 2px 0; min-height: 24px; padding: 0 10px 6px; list-style: none; font-size: 12px; font-weight: 700; line-height: 18px; }
-.order li { position: relative; padding: 0 7px; white-space: nowrap; color: var(--ink-soft); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; }
-.order li + li { margin-inline-start: 16px; }
-.order li + li::before { content: "←"; position: absolute; inset-inline-start: -14px; color: rgba(255,255,255,.55); }
-.order li.me { font-weight: 800; }
-/* the score sits apart from the name behind a thin line, so «رقیب ۲» and 8 never read as «رقیب ۲۸» */
-.order li b { margin-inline-start: 5px; padding-inline-start: 5px; border-inline-start: 1px solid currentColor; font-weight: 800; }
 i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-end: 4px; vertical-align: 1px; border-radius: 50%; background: var(--c); }
-.order li.now { color: var(--gold-ink); font-weight: 800; background: rgb(var(--gold)); border-color: rgb(var(--gold)); box-shadow: 0 0 12px rgba(var(--gold),.5); }
 
 /* 2. rivals */
 .rivals { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 0 6px; }
@@ -65,8 +56,15 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
 .rivals:not(.many) .rival-panel { padding: 3px 5px; border-radius: 10px; border: 1px solid transparent; }
 .rivals:not(.many) .cards-row-rival { flex: 1; min-width: 0; }
 .rivals:not(.many) .rival-panel.on { border-color: rgba(var(--gold),.6); background: rgba(var(--gold),.07); }
-.rival-avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; font-size: 13px; font-weight: 800; color: #1d1236; background: var(--c, #5f6876); border: 1.5px solid #fff; border-radius: 50%; }
-.rival-panel.on .rival-avatar { box-shadow: 0 0 0 3px rgba(var(--gold),.7), 0 0 12px rgba(var(--gold),.5); }
+/* the rival's name sits quietly over its cards and turns gold on its turn */
+.rival-tag { flex: none; font-size: 12px; font-weight: 700; line-height: 16px; color: var(--ink-soft); white-space: nowrap; opacity: .8; transition: color .2s, opacity .2s, text-shadow .2s; }
+/* a thin line keeps «رقیب ۲» and 8 from reading as «رقیب ۲۸» */
+.rival-tag b { margin-inline-start: 6px; padding-inline-start: 6px; border-inline-start: 1px solid currentColor; font-weight: 800; }
+.rival-panel.on .rival-tag { color: rgb(var(--gold)); opacity: 1; text-shadow: 0 0 10px rgba(var(--gold),.6); }
+.rivals:not(.many) .rival-panel { flex-direction: column; align-items: stretch; gap: 3px; }
+.rivals:not(.many) .rival-tag { text-align: center; }
+.rivals.many .rival-tag { width: 44px; font-size: 11px; text-align: start; white-space: normal; line-height: 14px; }
+.rivals.many .rival-tag b { display: block; margin: 0; padding: 0; border: 0; }
 .cards-row-rival, .cards-row-player { display: flex; justify-content: center; gap: 4px; }
 .slot { position: relative; flex: 0 0 calc((100% - (var(--n, 5) - 1) * 4px) / var(--n, 5)); min-width: 0; }
 .rivals.many .rival-panel { display: flex; align-items: center; gap: 6px; padding: 3px 5px; border-radius: 10px; border: 1px solid transparent; }
@@ -266,7 +264,6 @@ i[style*="--c"] { display: inline-block; width: 8px; height: 8px; margin-inline-
   .village-section { padding-block: 5px; }
 }
 @media (max-height: 600px) {
-  .order { padding-bottom: 3px; }
   .rivals { gap: 3px; }
   .rivals.many .slot { flex-basis: min(calc((100% - 18px) / var(--n, 5)), 5.5vh); }
   .cards-row-player .slot { max-width: 11vh; }
