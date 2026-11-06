@@ -28,7 +28,7 @@ const TEXT: Record<number, string> = {
 };
 const nameOf = (rank: number) => AMULET_SET.find(d => d.rank === rank)?.name ?? '';
 const label = (rank: number) => `${nameOf(rank)} (${fa(rank)})`;
-const AMULET = '<img src="art/amulet.jpg" alt="طلسم">';
+const AMULET = '<img src="art/amulet.png" alt="طلسم">';
 const draw = (inner: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
 const ICON = {
   home: draw('<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h4.5v-6h4v6h4.5V10"/>'),
@@ -55,6 +55,8 @@ const ICON = {
   /* in a right-to-left screen, going back points right */
   goBack: draw('<path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>'),
 };
+/* short foreign names, easy to say and to tell apart */
+const RIVAL_NAMES = ['لئو', 'نینا', 'مکس'];
 /* each seat keeps one colour, on its avatar and in the turn order */
 const SEAT = ['#8fd3ff', '#ff9e9e', '#ffd36b', '#9be8a8'];
 
@@ -67,7 +69,6 @@ interface Btn { slot: Slot; label: string; icon?: keyof typeof ICON; kind?: 'bur
 interface Controls {
   prompt: string;
   /** the second line; without it the line explains the card in hand */
-  sub?: string;
   wait?: boolean;
   can?: (id: CardId, owner: number) => boolean;
   tap?: (id: CardId, owner: number) => void;
@@ -108,7 +109,8 @@ const U = {
   sel: new Set<CardId>(),
   peek: new Map<CardId, number>(),
   reveal: new Map<CardId, number>(),
-  pulse: new Set<CardId>(),
+  /** cards a rival just touched, with a word saying what it did to them */
+  pulse: new Map<CardId, string>(),
   mark: new Set<CardId>(),
   eye: new Set<CardId>(),
   arrow: null as { from: CardId; to: CardId } | null,
@@ -129,8 +131,6 @@ const U = {
   sideShown: new Map<Slot, Btn>(),
   /** shown for a moment after the player's turn ends on its own */
   doneMsg: '',
-  /** what each rival did since the player's last turn */
-  heard: new Map<number, string[]>(),
   zoom: null as number | null,
 };
 
@@ -214,20 +214,17 @@ function dispatch(player: number, cmd: Command): GameEvent[] {
       U.log.push('پایان دور');
       U.mark.clear();
       U.pulse.clear();
-      U.heard.clear();
       U.mine = [];
     }
     if (text && player === ME && cmd.type !== 'undo') U.mine[U.mine.length - 1]?.push(text);
-    if (text && player !== ME && r.state.phase === 'turn') U.heard.set(player, [...(U.heard.get(player) ?? []), text]);
-    /* once the player has moved, the rivals' news is old */
-    if (e.type === 'turnEnded' && e.player === ME) { U.heard.clear(); U.sideShown.clear(); }
+    if (e.type === 'turnEnded' && e.player === ME) U.sideShown.clear();
     if (e.type === 'roundEnded') U.sideShown.clear();
     if (e.type === 'saw' && e.to === ME && !r.state.turn.hand.includes(e.card)) U.peek.set(e.card, e.rank);
     if (e.type === 'revealedSet' && player === ME) U.setMiss = e.matched ? 0 : e.cards.length;
     if (player === ME) return;
-    const touched = e.type === 'flipped' || e.type === 'looked' ? [e.card] : e.type === 'swapped' ? [e.a, e.b] : [];
-    touched.forEach(id => { U.pulse.add(id); if (mine.has(id)) U.mark.add(id); });
-    if (e.type === 'placed') U.pulse.add(e.card);
+    const touched: [CardId, string][] = e.type === 'flipped' ? [[e.card, 'رو شد']] : e.type === 'looked' ? [[e.card, 'دیدش']] : e.type === 'swapped' ? [[e.a, 'جابه‌جا'], [e.b, 'جابه‌جا']] : [];
+    touched.forEach(([id, what]) => { U.pulse.set(id, what); if (mine.has(id)) U.mark.add(id); });
+    if (e.type === 'placed') U.pulse.set(e.card, 'جدید');
   });
   save();
   return r.events;
@@ -357,8 +354,8 @@ async function rivalMove(p: number, cmd: Command): Promise<void> {
       U.eye = new Set();
       go();
       return;
-    case 'guard': go(); U.pulse.add(cmd.target ?? cmd.guard); await beat('محافظ گذاشت'); return;
-    case 'placeAmulet': go(); U.pulse.add(cmd.card); await beat('طلسم گذاشت'); return;
+    case 'guard': go(); U.pulse.set(cmd.target ?? cmd.guard, 'محافظ'); await beat('محافظ گذاشت'); return;
+    case 'placeAmulet': go(); U.pulse.set(cmd.card, 'طلسم'); await beat('طلسم گذاشت'); return;
     case 'call': go(); await beat('سرشماری کرد'); return;
     case 'confirm': go(); U.verb = ''; render(); await wait(pace(500)); return;
     default: go();
@@ -370,11 +367,10 @@ function startGame(rivals: number): void {
   gameId++;
   U.sheet = null;
   U.log = [];
-  U.heard.clear();
   U.sideShown.clear();
   U.mine = [];
   U.doneMsg = '';
-  const names = ['تو', ...Array.from({ length: rivals }, (_, i) => 'رقیب ' + fa(i + 1))];
+  const names = ['تو', ...RIVAL_NAMES.slice(0, rivals)];
   game = newGame(names, Math.floor(Math.random() * 2 ** 31));
   rivalsPeek();
   save();
@@ -390,7 +386,7 @@ function leave(): void {
   gameId++;
   game = null;
   U.sel.clear(); U.peek.clear(); U.reveal.clear(); U.mark.clear(); U.pulse.clear(); U.eye.clear();
-  U.side = null; U.sheet = null; U.heard.clear(); U.sideShown.clear(); U.mine = []; U.doneMsg = ''; U.zoom = null; U.note = ''; U.busy = ''; U.verb = ''; U.arrow = null;
+  U.side = null; U.sheet = null; U.sideShown.clear(); U.mine = []; U.doneMsg = ''; U.zoom = null; U.note = ''; U.busy = ''; U.verb = ''; U.arrow = null;
   render();
 }
 function resume(data: Saved): void {
@@ -461,32 +457,30 @@ function controls(v: GameView): Controls {
       /* while village cards are chosen the other moves rest instead of leaving, so no button slides under the finger */
       const off = n > 0;
       if (burnable) {
-        if (power) buttons.push({ slot: 'ability', icon: 'ability', label: 'سوزاندن + توانایی', off, fn: () => act({ type: 'burn', card: focus.id, useAbility: true }) });
+        if (power) buttons.push({ slot: 'ability', icon: 'ability', label: 'توانایی', off, fn: () => act({ type: 'burn', card: focus.id, useAbility: true }) });
         buttons.push({ slot: 'burn', icon: 'flame', label: power ? 'فقط سوزاندن' : 'سوزاندن', kind: 'burn', off, fn: () => act({ type: 'burn', card: focus.id, useAbility: false }) });
       }
       if (game?.turn.source === 'deck' && hand.length <= v.rascalExtra && v.deckCount) buttons.push({ slot: 'more', icon: 'more', label: 'کارت بیشتر', off, fn: () => act({ type: 'drawMore' }) });
       if (fromPile) buttons.push({ slot: 'back', icon: 'back', label: 'برگرداندن', off, fn: () => act({ type: 'returnCard' }) });
       const text = TEXT[focus.rank ?? -1] ?? '';
       let prompt: string;
-      let sub: string;
-      if (n > 1) { prompt = setPrompt(n); sub = setRisk(n); }
-      else if (n === 1) { prompt = 'معاوضه را بزن'; sub = 'برای ست، کارت‌های هم‌عدد دیگر را هم انتخاب کن.'; }
-      else if (hand.length > 1) { prompt = 'یکی را نگه دار'; sub = text; }
-      else if (burnable) { prompt = 'بسوزان، یا کارت دهکده را بزن تا عوض شود'; sub = text; }
+      if (n > 1) prompt = setPrompt(n);
+      else if (n === 1) prompt = 'معاوضه را بزن';
+      else if (hand.length > 1) prompt = 'یکی را نگه دار';
+      /* the card's own text comes first: the buttons below already say what can be done with it */
+      else if (burnable) prompt = text || 'بسوزان یا معاوضه کن';
       /* a card from the burned pile is only swapped, so its ability is not offered */
-      else { prompt = 'کارت دهکده را بزن تا عوض شود'; sub = 'کارت ستون سوخته فقط معاوضه می‌شود و توانایی‌اش به کار نمی‌آید.'; }
-      return { prompt, sub, sideTools: true, buttons, can: (id, o) => o === ME && free(id), tap: toggle, hand: id => { U.focus = id; render(); } };
+      else prompt = 'با یک کارت دهکده‌ات معاوضه کن';
+      return { prompt, sideTools: true, buttons, can: (id, o) => o === ME && free(id), tap: toggle, hand: id => { U.focus = id; render(); } };
     }
     case 'placeSpot': return { prompt: 'کارت جدید کجا بنشیند؟', spot: i => act({ type: 'placeSpot', index: i }) };
     case 'placeEnd': {
       const end = (side: 'start' | 'end') => act({ type: 'placeEnd', side });
       if (game?.turn.placing?.unseen) {
-        return { prompt: 'کارت جریمه: کدام سر دهکده؟', sub: 'ست ۳ کارتی یا بیشتر هم‌عدد نبود، پس یک کارت ندیده از دسته هم جریمه می‌گیری.', sideTools: true, end };
+        return { prompt: 'کارت جریمه: کدام سر دهکده؟', sideTools: true, end };
       }
-      const extra = U.setMiss >= 3 ? ' بعد از آن، یک کارت ندیده هم از دسته جریمه می‌گیری.' : '';
       return {
         prompt: U.setMiss ? 'ست هم‌عدد نبود: کدام سر دهکده؟' : 'به کدام سر دهکده برود؟',
-        sub: U.setMiss ? `کارت‌های ست پشت‌ورو سر جایشان برگشتند (همه آن‌ها را دیدند). کارت جدید نمی‌سوزد و به یک سر دهکده‌ات اضافه می‌شود.${extra}` : undefined,
         sideTools: true,
         end,
       };
@@ -496,7 +490,6 @@ function controls(v: GameView): Controls {
       const n = U.sel.size;
       return {
         prompt: n > 1 ? setPrompt(n) : 'با کارت حریف یا خودت عوض کن',
-        sub: n > 1 ? setRisk(n) : TEXT[RANK.witch],
         sideTools: true,
         can: (id, o) => (o === ME ? free(id) : v.witchTargets.includes(id)),
         tap: (id, o) => { if (o === ME) toggle(id); else act({ type: 'witchGive', target: id }); },
@@ -508,21 +501,26 @@ function controls(v: GameView): Controls {
     case 'confirm': default: {
       const buttons: Btn[] = [{ slot: 'done', icon: 'check', label: 'تمام', kind: 'ok', fn: () => { U.mine = []; act({ type: 'confirm' }); } }];
       if (v.canUndo) buttons.push({ slot: 'undo', icon: 'undo', label: 'پس گرفتن', fn: () => act({ type: 'undo' }) });
-      const did = U.mine.flat();
-      return { prompt: 'نوبتت تمام شد؟', sub: did.length ? 'این نوبت: ' + did.join('، ') : undefined, sideTools: true, buttons };
+      /* the turn only waits here when something is still possible: name it */
+      const own = v.players[ME]?.village ?? [];
+      const still = [
+        v.canUndo ? 'پس گرفتن' : '',
+        v.empathLeft > 0 && own.some(c => !c.faceUp && v.amulet.on !== c.id) ? 'افسون‌گر' : '',
+        own.some(c => c.faceUp && c.rank === RANK.bodyguard && v.amulet.on !== c.id) ? 'محافظ' : '',
+        v.amulet.holder === ME && v.amulet.usable && !v.amulet.on ? 'طلسم' : '',
+      ].filter(Boolean);
+      return { prompt: still.length ? `${still.join('، ')} یا تمام؟` : 'نوبتت تمام شد؟', sideTools: true, buttons };
     }
   }
 }
 /* choosing several cards means a set, which costs a card when the numbers differ */
 const setPrompt = (n: number) => `ست ${fa(n)} کارتی: همه باید هم‌عدد باشند`;
-const setRisk = (n: number) => `اگر هم‌عدد نباشند، کارت‌ها برمی‌گردند و کارت جدید هم به دهکده‌ات اضافه می‌شود${n >= 3 ? '، به‌علاوه‌ی یک کارت جریمه از دسته' : ''}.`;
 function abilityControls(v: GameView): Controls {
   const r = v.pending as number;
   const back: Btn[] = [{ slot: 'skip', icon: 'skip', label: 'رد کردن', fn: () => act({ type: 'skipAbility' }) }];
   if (v.canUndo) back.push({ slot: 'undo', icon: 'undo', label: 'پس گرفتن', fn: () => act({ type: 'undo' }) });
   const allowed = (id: CardId) => v.candidates.includes(id);
-  const sub = TEXT[r];
-  const one = (prompt: string): Controls => ({ prompt, sub, can: allowed, tap: id => act({ type: 'target', cards: [id] }), buttons: back });
+  const one = (prompt: string): Controls => ({ prompt, can: allowed, tap: id => act({ type: 'target', cards: [id] }), buttons: back });
   switch (r) {
     case RANK.exposer: return one('یک کارت خودت را رو کن');
     case RANK.revealer: return one('یک کارت را رو کن');
@@ -532,20 +530,18 @@ function abilityControls(v: GameView): Controls {
       const n = U.sel.size;
       return {
         prompt: 'تا ۲ کارت خودت را ببین',
-        sub,
         can: id => allowed(id) && (n < 2 || U.sel.has(id)),
         tap: id => { if (U.sel.has(id)) U.sel.delete(id); else U.sel.add(id); render(); },
         buttons: n ? [{ slot: 'eye', icon: 'eye', label: 'دیدن', fn: () => act({ type: 'target', cards: [...U.sel] }) }] : back,
       };
     }
     case RANK.master:
-      return { prompt: 'یک کارت بردار', sub, can: () => false, buttons: back };
+      return { prompt: 'یک کارت بردار', can: () => false, buttons: back };
     case RANK.robber: {
-      if (!U.stolen) return { prompt: 'کارت حریف را انتخاب کن', sub, can: allowed, tap: id => { U.stolen = id; U.sel = new Set([id]); render(); }, buttons: back };
+      if (!U.stolen) return { prompt: 'کارت حریف را انتخاب کن', can: allowed, tap: id => { U.stolen = id; U.sel = new Set([id]); render(); }, buttons: back };
       const stolen = U.stolen;
       return {
         prompt: 'کارت خودت را بده',
-        sub,
         can: (id, o) => o === ME && v.amulet.on !== id,
         tap: id => act({ type: 'target', cards: [stolen, id] }),
         buttons: [{ slot: 'back', icon: 'goBack', label: 'برگشت', fn: () => { U.stolen = null; U.sel.clear(); render(); } }],
@@ -569,18 +565,17 @@ function sideControls(v: GameView): Controls {
     render();
   };
   if (side.kind === 'empath') {
-    return { prompt: 'یک کارت خودت را ببین', sub: 'یکی از کارت‌های پشت‌وروی خودت را مخفیانه ببین.', can: (id, o) => o === ME && !own.find(c => c.id === id)?.faceUp && v.amulet.on !== id, tap: id => keep({ type: 'empathPeek', card: id }), buttons: [backBtn] };
+    return { prompt: 'یک کارت خودت را ببین', can: (id, o) => o === ME && !own.find(c => c.id === id)?.faceUp && v.amulet.on !== id, tap: id => keep({ type: 'empathPeek', card: id }), buttons: [backBtn] };
   }
   if (side.kind === 'amulet') {
     const linked = (id: CardId) => own.some(c => c.guarding === id) || !!own.find(c => c.id === id)?.guarding;
-    return { prompt: 'یک کارت را قفل کن', sub: 'تا آخر دور هیچ‌کس، حتی خودت، نمی‌تواند این کارت را ببیند یا جابه‌جا کند.', can: (id, o) => o === ME && !linked(id), tap: id => keep({ type: 'placeAmulet', card: id }), buttons: [backBtn] };
+    return { prompt: 'یک کارت را قفل کن', can: (id, o) => o === ME && !linked(id), tap: id => keep({ type: 'placeAmulet', card: id }), buttons: [backBtn] };
   }
   const g = side.guard;
   const buttons: Btn[] = [backBtn];
   if (own.find(c => c.id === g)?.guarding) buttons.unshift({ slot: 'guard', icon: 'shield', label: 'برداشتن', kind: 'burn', fn: () => keep({ type: 'guard', guard: g, target: null }) });
   return {
     prompt: 'یک کارت را حفظ کن',
-    sub: TEXT[RANK.bodyguard],
     can: (id, o) => {
       if (o !== ME || id === g || v.amulet.on === id) return false;
       if (own.find(c => c.id === id)?.guarding) return false;
@@ -611,7 +606,9 @@ function cardEl(c: CardView, opts: { act?: number; go?: boolean; extra?: string;
   const art = visible ? ` style="background-image:url(art/c${rank}.jpg)"` : '';
   const aria = (opts.where ? opts.where + ': ' : '') + (visible ? `${nameOf(rank)}، عدد ${fa(rank)}` : 'کارت پشت‌ورو') + (U.sel.has(c.id) ? '، انتخاب‌شده' : '');
   const eye = U.eye.has(c.id) ? `<span class="eye">${ICON.eye}</span>` : '';
-  const inner = (visible ? `<span class="pip">${fa(rank)}</span><span class="nm">${nameOf(rank)}</span>` : '') + eye;
+  const what = !opts.ghost && U.pulse.get(c.id);
+  const tag = what ? `<span class="touched">${what}</span>` : '';
+  const inner = (visible ? `<span class="pip">${fa(rank)}</span><span class="nm">${nameOf(rank)}</span>` : '') + eye + tag;
   /* a face-up card with nothing to do opens big, so its picture and text can be read */
   let action = ` data-act="${opts.act}"`;
   if (opts.act === undefined) {
@@ -653,8 +650,13 @@ function villageEl(v: GameView, owner: number, m: Controls): { html: string; cou
   }
   return { html: items.join(''), count: items.length };
 }
-const columns = (count: number) => Math.min(Math.max(5, count), 7);
-const amuletToken = (v: GameView, i: number) => (v.amulet.holder === i && v.amulet.usable && !v.amulet.on ? `<span class="amulet-token">${AMULET}</span>` : '');
+const columns = (count: number) => Math.max(5, count);
+/* the amulet waiting to be used carries its name, and a tap says what it does */
+const amuletToken = (v: GameView, i: number) => {
+  if (v.amulet.holder !== i || !v.amulet.usable || v.amulet.on) return '';
+  const say = i === ME ? 'طلسم مال توست: روی یک کارتت بگذار تا تا آخر دور قفل شود.' : `${nameIn(i)} طلسم دارد و می‌تواند یک کارتش را قفل کند.`;
+  return `<button type="button" class="amulet-token" aria-label="طلسم" data-act="${rb(() => { U.note = say; render(); })}">${AMULET}<small>طلسم</small></button>`;
+};
 const round = (icon: string) => `<span class="ring">${icon}</span>`;
 
 function toolsEl(v: GameView, m: Controls): string {
@@ -685,20 +687,12 @@ function toolsEl(v: GameView, m: Controls): string {
   const side = SIDE_ORDER.flatMap(k => (by.has(k) ? [one(by.get(k) as Btn)] : []));
   return main.join('') + (main.length && side.length ? '<span class="tools-sep" aria-hidden="true"></span>' : '') + side.join('');
 }
+/* one short line: players do not stop to read explanations */
 function messageEl(v: GameView, m: Controls): string {
   let main = m.prompt;
-  let sub = m.sub ?? '';
-  if (U.doneMsg) {
-    main = 'نوبتت تمام شد';
-    sub = U.doneMsg;
-  } else if (v.phase === 'turn' && v.current !== ME && U.verb) {
-    main = `${nameIn(v.current)} ${U.verb}`;
-    sub = 'برای سریع‌تر شدن، روی میز بزن';
-  } else if (!m.sub && v.current === ME && v.phase === 'turn' && v.step === 'start' && !U.side && !U.peek.size && U.heard.size) {
-    /* what the rivals did since the player's last turn, one line each */
-    sub = [...U.heard].map(([p, said]) => `<i style="--c:${SEAT[p]}"></i>${nameIn(p)}: ${said.join('، ')}`).join('<br>');
-  }
-  return `<div class="message"><b>${main}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
+  if (U.doneMsg) main = 'نوبتت تمام شد';
+  else if (v.phase === 'turn' && v.current !== ME && U.verb) main = `${nameIn(v.current)} ${U.verb}`;
+  return `<div class="message"><b>${main}</b></div>`;
 }
 function gameEl(): string {
   const v = view();
@@ -744,7 +738,9 @@ function gameEl(): string {
   }
   /* a card just looked at is also shown big in the middle, where it can be read */
   if (U.peek.size) {
-    const seen = [...U.peek].map(([id, rank]) => cardEl({ id, rank, faceUp: false, guarding: null }, { ghost: true })).join('');
+    const at = new Map<CardId, number>();
+    v.players.forEach(p => p.village.forEach((c, i) => at.set(c.id, i)));
+    const seen = [...U.peek].sort(([a], [b]) => (at.get(a) ?? 0) - (at.get(b) ?? 0)).map(([id, rank]) => cardEl({ id, rank, faceUp: false, guarding: null }, { ghost: true })).join('');
     stage = `<div class="stage"><div class="hand${U.peek.size > 1 ? ' many' : ''}">${seen}</div></div>`;
   }
   const mine = villageEl(v, ME, m);
@@ -755,7 +751,7 @@ function gameEl(): string {
     <header class="top-bar">
       ${topBtn(ICON.home, 'خانه', leave)}
       ${topBtn(ICON.sheet, 'امتیاز و تاریخچه', () => { U.sheet = 'score'; render(); })}
-      <div class="round-title"><h1>دور ${fa(v.round)} <small>از ${fa(ROUNDS)}</small></h1></div>
+      <div class="round-title"><h1>دور ${fa(v.round)}<span class="sr-only"> از ${fa(ROUNDS)}</span></h1><span class="round-pips" aria-hidden="true">${Array.from({ length: ROUNDS }, (_, i) => `<i class="${i < v.round - 1 ? 'done' : i === v.round - 1 ? 'now' : ''}"></i>`).join('')}</span></div>
       ${topBtn(ICON.help, 'راهنمای کارت‌ها', () => { U.sheet = 'help'; render(); })}
     </header>
     <div class="rivals${rivalCount > 1 ? ' many' : ''}">${rivals}</div>
@@ -771,7 +767,7 @@ function gameEl(): string {
 function zoomEl(): string {
   if (U.zoom === null) return '';
   const r = U.zoom;
-  return `<div class="zoom" role="dialog" aria-modal="true" aria-label="${nameOf(r)}" tabindex="-1" data-act="${rb(() => { U.zoom = null; render(); })}"><span class="zoom-card" style="background-image:url(art/c${r}.jpg)"></span><p><strong>${label(r)}</strong>${TEXT[r] ?? ''}</p><small>برای بستن بزن</small></div>`;
+  return `<div class="zoom" role="dialog" aria-modal="true" aria-label="${nameOf(r)}" tabindex="-1" data-act="${rb(() => { U.zoom = null; render(); })}"><span class="zoom-card" style="background-image:url(art/c${r}.jpg)"></span><p><strong>${nameOf(r)}</strong>${TEXT[r] ?? ''}</p><small>برای بستن بزن</small></div>`;
 }
 /** A dialog. A closable one also closes with Escape or a tap outside it. */
 function panel(title: string, body: string, closable = true): string {
@@ -808,7 +804,7 @@ function resultText(v: GameView): string {
   }
   return lines.map(l => `<p>${l}</p>`).join('');
 }
-/** The log, newest first, with each player's moves in a row joined into one line. */
+/** The log, newest first: one block per turn, one move per line, card numbers as small badges. */
 function historyEl(v: GameView): string {
   const groups: { who: number; texts: string[] }[] = [];
   for (const line of U.log) {
@@ -818,9 +814,10 @@ function historyEl(v: GameView): string {
     if (last && last.who === who && who >= 0) last.texts.push(text);
     else groups.push({ who, texts: [text] });
   }
+  const moves = (texts: string[]) => texts.flatMap(t => t.split('، ')).map(t => `<li>${t.replace(/ \(([۰-۹]+)\)/g, ' <span class="num">$1</span>')}</li>`).join('');
   return `<ul class="logs">${groups.reverse().map(g => (g.who < 0
     ? `<li class="sep">${g.texts.join('، ')}</li>`
-    : `<li><i style="--c:${SEAT[g.who]}"></i><b>${nameIn(g.who)}:</b> ${g.texts.join('، ')}</li>`)).join('')}</ul>`;
+    : `<li class="turn${g.who === ME ? ' me' : ''}" style="--c:${SEAT[g.who]}"><b>${nameIn(g.who)}</b><ul>${moves(g.texts)}</ul></li>`)).join('')}</ul>`;
 }
 function sheetEl(v: GameView): string {
   if (v.phase === 'gameEnd') {
@@ -1013,7 +1010,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 }
 render();
 /* the pictures load once at the start, so no card or guide picture is black the first time it shows */
-const pictures = [...Array.from({ length: 14 }, (_, r) => `art/c${r}.jpg`), 'art/back.jpg', 'art/back-sm.jpg', 'art/amulet.jpg', 'art/sky-start.webp', 'art/sky-table.webp'].map(src => {
+const pictures = [...Array.from({ length: 14 }, (_, r) => `art/c${r}.jpg`), 'art/back.jpg', 'art/back-sm.jpg', 'art/amulet.png', 'art/sky-start.webp', 'art/sky-table.webp'].map(src => {
   const img = new Image();
   img.src = src;
   return img;
